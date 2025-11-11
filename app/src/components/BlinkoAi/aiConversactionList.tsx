@@ -69,7 +69,7 @@ export const AiConversactionList = observer(() => {
               className="flex-1 truncate max-w-[calc(100%-80px)] cursor-pointer"
               onClick={() => {
                 if (editingId !== null) return;
-                aiStore.currentConversationId = item.id;
+                aiStore.currentConversationId.save(item.id);
                 aiStore.currentConversation.call();
                 aiStore.isChatting = true;
                 RootStore.Get(DialogStore).close();

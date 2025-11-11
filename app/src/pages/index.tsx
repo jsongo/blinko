@@ -51,7 +51,7 @@ const Home = observer(() => {
     } else {
       return blinko.blinkoList;
     }
-  }, [isNotesView, isTodoView, isArchivedView, isTrashView, isAllView, blinko]);
+  }, [isNotesView, isTodoView, isArchivedView, isTrashView, isAllView]);
 
   // Use drag card hook only for non-todo views
   const { localNotes, sensors, setLocalNotes, handleDragStart, handleDragEnd, handleDragOver } = useDragCard({
@@ -59,7 +59,8 @@ const Home = observer(() => {
     activeId,
     setActiveId,
     insertPosition,
-    setInsertPosition
+    setInsertPosition,
+    isLoading: currentListState.isLoading
   });
 
   const store = RootStore.Local(() => ({
@@ -73,7 +74,7 @@ const Home = observer(() => {
   }))
 
   const todosByDate = useMemo(() => {
-    if (!isTodoView || !currentListState.value) return {} as Record<string, TodoGroup>;
+    if (!isTodoView || !currentListState.value || currentListState.value.length === 0) return {} as Record<string, TodoGroup>;
     const todoItems = currentListState.value;
     const groupedTodos: Record<string, TodoGroup> = {};
     todoItems.forEach(todo => {

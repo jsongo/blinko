@@ -167,7 +167,8 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
             //@ts-ignore
             attachments: files.map(i => { return { name: i.name, path: i.uploadPath, size: i.size, type: i.type } }),
             references,
-            metadata
+            metadata,
+            refresh: true  // Explicitly ensure refresh after edit
           })
           try {
             const index = blinko.editAttachmentsStorage.list?.findIndex(i => i.id == blinko.curSelectedNote!.id)

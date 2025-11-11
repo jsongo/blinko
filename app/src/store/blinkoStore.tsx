@@ -429,7 +429,6 @@ export class BlinkoStore implements Store {
     function: async () => {
       const falttenTags = await api.tags.list.query(undefined, { context: { skipBatch: true } });
       const listTags = helper.buildHashTagTreeFromDb(falttenTags)
-      console.log(falttenTags, 'listTags')
       let pathTags: string[] = [];
       listTags.forEach(node => {
         pathTags = pathTags.concat(helper.generateTagPaths(node));
@@ -583,19 +582,22 @@ export class BlinkoStore implements Store {
   useQuery() {
     const [searchParams] = useSearchParams();
     const location = useLocation();
+    
+    // Extract all query params as primitive values for proper dependency tracking
+    const tagId = searchParams.get('tagId');
+    const withoutTag = searchParams.get('withoutTag');
+    const withFile = searchParams.get('withFile');
+    const withLink = searchParams.get('withLink');
+    const searchText = searchParams.get('searchText');
+    const hasTodo = searchParams.get('hasTodo');
+    const path = searchParams.get('path');
+    
     useEffect(() => {
-      const tagId = searchParams.get('tagId');
       if (tagId && Number(tagId) === this.noteListFilterConfig.tagId) {
         return;
       }
-      
-      const withoutTag = searchParams.get('withoutTag');
-      const withFile = searchParams.get('withFile');
-      const withLink = searchParams.get('withLink');
-      const searchText = searchParams.get('searchText') || this.searchText;
-      const hasTodo = searchParams.get('hasTodo');
-      const path = searchParams.get('path');
 
+      // Reset all filters
       this.noteListFilterConfig.type = NoteType.BLINKO
       this.noteTypeDefault = NoteType.BLINKO
       this.noteListFilterConfig.tagId = null
@@ -609,20 +611,21 @@ export class BlinkoStore implements Store {
       this.noteListFilterConfig.isShare = null
       this.noteListFilterConfig.hasTodo = false
 
-      if (path == 'notes') {
+      // Load data based on path
+      if (path === 'notes') {
         this.noteListFilterConfig.type = NoteType.NOTE
         this.noteOnlyList.resetAndCall({});
-      } else if (path == 'todo') {
+      } else if (path === 'todo') {
         this.noteListFilterConfig.type = NoteType.TODO
         this.todoList.resetAndCall({});
-      } else if (path == 'all') {
+      } else if (path === 'all') {
         this.noteListFilterConfig.type = -1
         this.noteList.resetAndCall({});
-      } else if (path == 'archived') {
+      } else if (path === 'archived') {
         this.noteListFilterConfig.type = -1
         this.noteListFilterConfig.isArchived = true
         this.archivedList.resetAndCall({});
-      } else if (path == 'trash') {
+      } else if (path === 'trash') {
         this.noteListFilterConfig.type = -1
         this.noteListFilterConfig.isRecycle = true
         this.trashList.resetAndCall({});
@@ -650,7 +653,7 @@ export class BlinkoStore implements Store {
       } else {
         this.searchText = '';
       }
-    }, [this.forceQuery, location.pathname, searchParams])
+    }, [location.pathname, tagId, withoutTag, withFile, withLink, searchText, hasTodo, path])
   }
 
   excludeEmbeddingTagId: number | null = null;

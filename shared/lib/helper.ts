@@ -5,7 +5,7 @@ export interface TagTreeNode {
   name: string;
   children?: TagTreeNode[];
 }
-export type TagTreeDBNode = Tag & { children?: TagTreeDBNode[]; metadata: { icon: string, path: string } }
+export type TagTreeDBNode = Tag & { children?: TagTreeDBNode[]; metadata: { icon: string, path: string, _count?: { tagsToNote: number } } }
 export const helper = {
   regex: {
     isEndsWithHashTag: /#[/\w\p{L}\p{N}]*$/u,
@@ -64,7 +64,19 @@ export const helper = {
     const map: Record<number, TagTreeDBNode> = {};
     const roots: TagTreeDBNode[] = [];
     tags.forEach(tag => {
-      map[tag.id] = { ...tag, children: [], metadata: { icon: tag.icon, path: '' } };
+      const tagCount = (tag as any)._count;
+      console.debug('buildHashTagTreeFromDb - processing tag:', tag.name, '_count:', tagCount);
+      map[tag.id] = {
+        ...tag,
+        children: [],
+        metadata: {
+          icon: tag.icon,
+          path: '',
+          // @ts-ignore - preserve _count field in metadata for flattenTree compatibility
+          _count: tagCount
+        }
+      };
+      console.debug('buildHashTagTreeFromDb - stored metadata:', map[tag.id].metadata);
     });
     function buildPath(tagId: number): string {
       const tag = map[tagId];

@@ -167,7 +167,14 @@ export const noteRouter = router({
       }
 
       if (tagId) {
-        const tags = await prisma.tagsToNote.findMany({ where: { tagId } });
+        const tags = await prisma.tagsToNote.findMany({
+          where: {
+            tagId,
+            note: {
+              isRecycle: isRecycle ?? false
+            }
+          }
+        });
         where.id = { in: tags?.map((i) => i.noteId) };
       }
       if (withFile) {

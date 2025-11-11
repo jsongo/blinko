@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { DragEndEvent, DragStartEvent, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter, useDroppable, useDraggable } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -13,21 +13,47 @@ interface UseDragCardProps {
   setActiveId: (id: number | null) => void;
   insertPosition: number | null;
   setInsertPosition: (position: number | null) => void;
+  isLoading?: boolean;
 }
 
-export const useDragCard = ({ notes, onNotesUpdate, activeId, setActiveId, insertPosition, setInsertPosition }: UseDragCardProps) => {
+export const useDragCard = ({ notes, onNotesUpdate, activeId, setActiveId, insertPosition, setInsertPosition, isLoading }: UseDragCardProps) => {
   const [localNotes, setLocalNotes] = useState<any[]>([]);
   const isDraggingRef = useRef(false);
 
-  // Update local notes when the list changes (but not during drag operations)
+  // Use ref to store previous notes to prevent infinite loops
+  const prevNotesRef = useRef<any[] | null>(null);
+
+  // Update local notes when the list changes (but not during drag operations or loading)
   useEffect(() => {
-    if (notes && !isDraggingRef.current) {
-      // Sort by sortOrder to maintain the correct order from the database
-      const sortedNotes = [...notes].sort((a, b) => a.sortOrder - b.sortOrder);
-      setLocalNotes(sortedNotes);
-      onNotesUpdate?.(sortedNotes);
+    // Skip updates during loading or dragging to prevent unnecessary re-renders
+    if (isLoading || isDraggingRef.current) {
+      return;
     }
-  }, [notes]);
+
+    if (notes) {
+      // Check if notes have actually changed by comparing with previous values
+      const hasNotesChanged =
+        !prevNotesRef.current ||
+        notes.length !== prevNotesRef.current.length ||
+        notes.some((note, index) => {
+          const prevNote = prevNotesRef.current![index];
+          return !prevNote || note.id !== prevNote.id || note.sortOrder !== prevNote.sortOrder;
+        });
+
+      if (hasNotesChanged) {
+        const sortedNotes = [...notes].sort((a, b) => (a?.sortOrder || 0) - (b?.sortOrder || 0));
+        setLocalNotes(sortedNotes);
+        // Only call onNotesUpdate if it's provided
+        if (onNotesUpdate) {
+          onNotesUpdate(sortedNotes);
+        }
+        prevNotesRef.current = notes;
+      }
+    } else if (localNotes.length > 0) {
+      setLocalNotes([]);
+      prevNotesRef.current = null;
+    }
+  }, [notes, isLoading, onNotesUpdate]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {

@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { observer } from 'mobx-react-lite';
 import { ThemeProvider } from 'next-themes';
 import { Inspector, InspectParams } from 'react-dev-inspector';
 import { HeroUIProvider } from '@heroui/react';
@@ -44,7 +45,7 @@ const ShareIndexPage = lazy(() => import('./pages/share'));
 const ShareDetailPage = lazy(() => import('./pages/share/[id]'));
 const AiSharePage = lazy(() => import('./pages/ai-share'));
 
-const HomeRedirect = () => {
+const HomeRedirect = observer(() => {
   const navigate = useNavigate();
   const location = useLocation();
   const blinko = RootStore.Get(BlinkoStore);
@@ -66,14 +67,14 @@ const HomeRedirect = () => {
     };
     
     redirectToDefaultPage();
-  }, [navigate, searchParams, location]);
+  }, []);
   
   if (loading) {
     return <LoadingPage />;
   }
   
   return <HomePage />;
-};
+});
 
 const ProtectedRoute = ({ children }) => {
   const navigate = useNavigate();

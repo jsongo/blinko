@@ -148,14 +148,14 @@ export class ResourceStore implements Store {
 
   use() {
     const [searchParams] = useSearchParams();
+    const folder = searchParams.get('folder');
 
     useEffect(() => {
-      const folder = searchParams.get('folder');
       if (folder !== this.currentFolder) {
         this.setCurrentFolder(folder);
         this.loadResources(folder || undefined);
       }
-    }, [searchParams]);
+    }, [folder]);
 
     useEffect(() => {
       this.loadResources(this.currentFolder || undefined);

@@ -15,7 +15,7 @@ export default defineConfig({
     ...(!process.env.DISABLE_PWA ? [
       VitePWA({
         devOptions: {
-          enabled: true
+          enabled: false  // Disable PWA in development to prevent caching issues
         },
         injectRegister: 'auto',
         // disable: process.env.NODE_ENV === 'development',
@@ -127,6 +127,9 @@ export default defineConfig({
     strictPort: false,
     host: host || false,
     allowedHosts: true,
+    hmr: {
+      overlay: false  // Disable error overlay to see the actual page
+    },
     watch: {
       ignored: ["**/src-tauri/**", "**/node_modules/**", "**/.git/**"],
     },

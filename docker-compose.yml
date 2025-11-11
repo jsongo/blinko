@@ -8,47 +8,28 @@ networks:
 services:
   blinko-website:
     container_name: blinko-website
+    image: blinkospace/blinko:latest
     build:
       context: .
       args:
-        USE_MIRROR: "true"  
+        USE_MIRROR: "true"
       dockerfile: ./dockerfile
     environment:
       NODE_ENV: production
-      NEXTAUTH_URL: http://localhost:1111
-      NEXT_PUBLIC_BASE_URL: http://localhost:1111
-      NEXTAUTH_SECRET: my_ultra_secure_nextauth_secret
-      DATABASE_URL: postgresql://postgres:mysecretpassword@postgres:5432/postgres
-    depends_on:
-      postgres:
-        condition: service_healthy
+      # NEXTAUTH_URL: http://localhost:1111
+      NEXT_PUBLIC_BASE_URL: https://note.lyb.pub/
+      NEXTAUTH_SECRET: 6W8p8EV0NO8IHd0uVbpoDB2BNB1Fza5WNG+ksAd4pDg=
+      DATABASE_URL: postgresql://blinko_user:85xGz5LLgRjl039XAfQTs@psql.lyb.pub:8543/postgres?schema=blinko
     restart: always
+    volumes:
+      - ./data:/app/.blinko
     ports:
-      - 1111:1111
+      - 27539:1111
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://blinko-website:1111/"]
-      interval: 30s 
-      timeout: 10s  
-      retries: 5
-      start_period: 30s
-    networks:
-      - blinko-network
-
-  postgres:
-    image: postgres:14
-    container_name: blinko-postgres
-    restart: always
-    # ports:
-    #  - 5432:5432
-    environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: mysecretpassword
-    healthcheck:
-      test:
-        ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
-      interval: 5s
+      test: [ "CMD", "wget", "--spider", "http://blinko-website:1111/" ]
+      interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 30s
     networks:
       - blinko-network

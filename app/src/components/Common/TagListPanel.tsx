@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import TreeView, { flattenTree } from "react-accessible-treeview";
 import { observer } from "mobx-react-lite";
 import { RootStore } from "@/store";
@@ -88,16 +88,31 @@ export const TagListPanel = observer(() => {
   const isSelected = (id) => {
     return blinko.noteListFilterConfig.tagId == id && searchParams.get('path') == 'all'
   }
+
+  // Create a map of tagId -> _count for quick lookup
+  const tagCountMap = React.useMemo(() => {
+    const map = new Map<number, number>();
+    blinko.tagList.value?.falttenTags?.forEach(tag => {
+      if ((tag as any)._count?.tagsToNote !== undefined) {
+        map.set(tag.id, (tag as any)._count.tagsToNote);
+      }
+    });
+    return map;
+  }, [blinko.tagList.value?.falttenTags]);
+
   useEffect(() => { }, [blinko.noteListFilterConfig.tagId])
   return (
     <>
       <div className="ml-2 my-2 text-xs font-bold text-primary">{t('total-tags')}</div>
       <TreeView
         className="mb-4"
-        data={flattenTree({
-          name: "",
-          children: blinko.tagList.value?.listTags,
-        })}
+        data={(() => {
+          const treeData = flattenTree({
+            name: "",
+            children: blinko.tagList.value?.listTags,
+          });
+          return treeData;
+        })()}
         aria-label="directory tree"
         togglableSelect
         clickAction="EXCLUSIVE_SELECT"
@@ -111,7 +126,9 @@ export const TagListPanel = observer(() => {
           getNodeProps,
           level,
           handleSelect,
-        }) => (
+        }) => {
+          const noteCount = tagCountMap.get(element.id as number);
+          return (
           <div {...getNodeProps()} style={{ paddingLeft: 20 * (level - 1) + 6 }} >
             <div className={`${SideBarItem}relative group ${(isSelected(element.id)) ? '!bg-primary !text-primary-foreground' : ''}`}
               onClick={e => {
@@ -144,8 +161,8 @@ export const TagListPanel = observer(() => {
 
               <div className="truncate overflow-hidden whitespace-nowrap" title={element.name}>
                 {element.name}
-                {isBranch && element.children?.length > 0 && (
-                  <span className="ml-1 text-xs opacity-60">({element.children.length})</span>
+                {noteCount !== undefined && noteCount > 0 && (
+                  <span className="ml-1 text-xs opacity-60">({noteCount})</span>
                 )}
               </div>
               <Dropdown>
@@ -301,7 +318,8 @@ export const TagListPanel = observer(() => {
               </Dropdown>
             </div>
           </div >
-        )}
+        );
+        }}
       />
     </>
   );

@@ -218,6 +218,10 @@ export class PromisePageState<T extends (...args: any) => Promise<any>, U = Retu
         return
       };
       this.loading.setValue(true);
+      // Clear data immediately when page === 1 to prevent showing stale data during loading
+      if (this.page === 1) {
+        this.setValue([]);
+      }
       if (args?.[0]) {
         Object.assign(args?.[0], { page: this.page, size: Number(this.size.value) })
       } else {
@@ -229,7 +233,7 @@ export class PromisePageState<T extends (...args: any) => Promise<any>, U = Retu
       if (res.length == 0) {
         this.isLoadAll = true
         if (this.page == 1) {
-          this.setValue(null);
+          this.setValue([]);
         }
         //@ts-ignore
         return this.value
@@ -280,13 +284,22 @@ export class PromisePageState<T extends (...args: any) => Promise<any>, U = Retu
   }
 
   async resetAndCall(...args: Parameters<T>): Promise<Awaited<U> | undefined> {
+    // Prevent race condition: check and set loading state before modifying page
+    if (this.loadingLock && this.loading.value == true) {
+      console.warn('resetAndCall: loadingLock active, skipping');
+      return
+    }
     this.isLoadAll = false
     this.page = 1
     //@ts-ignore
     return await this.call(...args)
   }
   async callNextPage(...args: Parameters<T>): Promise<Awaited<U> | undefined> {
-    if (this.loading.value) return
+    // Prevent race condition: check loading state and isLoadAll before incrementing page
+    if (this.loading.value || this.isLoadAll) {
+      console.warn('callNextPage: loading or isLoadAll, skipping');
+      return
+    }
     this.page++
     //@ts-ignore
     return await this.call(...args)

@@ -27,6 +27,29 @@ const AIPage = observer(() => {
   const theme = useTheme();
   const [inputHeight, setInputHeight] = useState(0);
   const isVisible = useSwiper();
+  
+  // Restore last conversation on mount
+  useEffect(() => {
+    const restoreLastConversation = async () => {
+      if (aiStore.currentConversationId.value > 0) {
+        try {
+          await aiStore.currentConversation.call();
+          // Only set isChatting if the conversation exists and has messages
+          if (aiStore.currentConversation.value?.messages?.length) {
+            aiStore.isChatting = true;
+          } else {
+            // If conversation doesn't exist or has no messages, reset
+            aiStore.currentConversationId.save(0);
+          }
+        } catch (error) {
+          // If conversation not found, reset
+          aiStore.currentConversationId.save(0);
+        }
+      }
+    };
+    restoreLastConversation();
+  }, []);
+  
   useEffect(() => {
     if (!InputBoxRef.current) return;
 

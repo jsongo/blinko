@@ -21,6 +21,7 @@ export const analyticsRouter = router({
         FROM "notes"
         WHERE "accountId" = ${parseInt(ctx.id)}
           AND "createdAt" >= NOW() - INTERVAL '1 year'
+          AND "isRecycle" = false
         GROUP BY "createdAt"::date
         ORDER BY "createdAt"::date ASC
       `;
@@ -53,6 +54,7 @@ export const analyticsRouter = router({
       const noteCount = await prisma.notes.count({
         where: {
           accountId: parseInt(ctx.id),
+          isRecycle: false,
           createdAt: {
             gte: startDate,
             lte: endDate
@@ -68,6 +70,7 @@ export const analyticsRouter = router({
         WHERE "accountId" = ${parseInt(ctx.id)}
           AND "createdAt" >= ${startDate}
           AND "createdAt" <= ${endDate}
+          AND "isRecycle" = false
         GROUP BY "createdAt"::date
         ORDER BY words DESC
       `
@@ -82,7 +85,8 @@ export const analyticsRouter = router({
           tagsToNote: {
             some: {
               note: {
-                accountId: parseInt(ctx.id)
+                accountId: parseInt(ctx.id),
+                isRecycle: false
               }
             }
           }
@@ -91,7 +95,13 @@ export const analyticsRouter = router({
           name: true,
           _count: {
             select: {
-              tagsToNote: true
+              tagsToNote: {
+                where: {
+                  note: {
+                    isRecycle: false
+                  }
+                }
+              }
             }
           }
         },

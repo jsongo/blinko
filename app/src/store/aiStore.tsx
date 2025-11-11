@@ -81,10 +81,10 @@ export class AiStore implements Store {
     content: '',
   };
 
-  currentConversationId = 0;
+  currentConversationId = new StorageState({ key: 'currentConversationId', value: 0, default: 0 });
   currentConversation = new PromiseState({
     function: async () => {
-      const res = await api.conversation.detail.query({ id: this.currentConversationId });
+      const res = await api.conversation.detail.query({ id: this.currentConversationId.value });
       return res;
     },
   });
@@ -106,15 +106,15 @@ export class AiStore implements Store {
       this.input = '';
       this.isChatting = true;
       this.isAnswering = true;
-      if (this.currentConversationId == 0) {
+      if (this.currentConversationId.value == 0) {
         const conversation = await api.conversation.create.mutate({ title: '' });
-        this.currentConversationId = conversation.id;
+        this.currentConversationId.save(conversation.id);
       }
 
-      if (this.currentConversationId != 0) {
+      if (this.currentConversationId.value != 0) {
         if (!isRegenerate) {
           await api.message.create.mutate({
-            conversationId: this.currentConversationId,
+            conversationId: this.currentConversationId.value,
             content: userQuestion,
             role: 'user',
             metadata: ""
@@ -182,7 +182,7 @@ export class AiStore implements Store {
           }
         }
         const newAssisantMessage = await api.message.create.mutate({
-          conversationId: this.currentConversationId,
+          conversationId: this.currentConversationId.value,
           content: this.currentMessageResult.content,
           role: 'assistant',
           metadata: {
@@ -195,7 +195,7 @@ export class AiStore implements Store {
         if (this.currentConversation.value?.messages?.length && this.currentConversation.value?.messages?.length < 3) {
           api.ai.summarizeConversationTitle.mutate({
             conversations: this.currentConversation.value?.messages ?? [],
-            conversationId: this.currentConversationId,
+            conversationId: this.currentConversationId.value,
           });
         }
         this.currentMessageResult.id = newAssisantMessage.id;
@@ -242,7 +242,7 @@ export class AiStore implements Store {
   };
 
   newChat = () => {
-    this.currentConversationId = 0;
+    this.currentConversationId.save(0);
     this.input = '';
     this.clearCurrentMessageResult();
     this.isChatting = false;
@@ -258,14 +258,14 @@ export class AiStore implements Store {
   newRoleChat = async (prompt: string) => {
     this.isChatting = true;
 
-    if (this.currentConversationId == 0) {
+    if (this.currentConversationId.value == 0) {
       const conversation = await api.conversation.create.mutate({ title: '' });
-      this.currentConversationId = conversation.id;
+      this.currentConversationId.save(conversation.id);
     }
 
-    if (this.currentConversationId != 0) {
+    if (this.currentConversationId.value != 0) {
       await api.message.create.mutate({
-        conversationId: this.currentConversationId,
+        conversationId: this.currentConversationId.value,
         content: prompt,
         role: 'system',
         metadata: ""
@@ -421,7 +421,7 @@ export class AiStore implements Store {
     this.isAnswering = false;
     if (this.currentMessageResult.content.trim() != '') {
       await api.message.create.mutate({
-        conversationId: this.currentConversationId,
+        conversationId: this.currentConversationId.value,
         content: this.currentMessageResult.content,
         role: 'assistant',
         metadata: this.currentMessageResult.notes,
@@ -429,7 +429,7 @@ export class AiStore implements Store {
     }
     // Add interruption notification message
     await api.message.create.mutate({
-      conversationId: this.currentConversationId,
+      conversationId: this.currentConversationId.value,
       content: '[Request interrupted by user]',
       role: 'system',
       metadata: {},

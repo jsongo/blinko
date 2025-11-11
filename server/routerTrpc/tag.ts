@@ -8,11 +8,35 @@ export const tagRouter = router({
   list: authProcedure
     .meta({ openapi: { method: 'GET', path: '/v1/tags/list', summary: 'Get user tags', protect: true, tags: ['Tag'] } })
     .input(z.void())
-    .output(z.array(tagSchema))
+    .output(z.array(tagSchema.extend({
+      _count: z.object({
+        tagsToNote: z.number()
+      }).optional()
+    })))
     .query(async function ({ ctx }) {
       const tags = await prisma.tag.findMany({
         where: {
-          accountId: Number(ctx.id)
+          accountId: Number(ctx.id),
+          tagsToNote: {
+            some: {
+              note: {
+                isRecycle: false
+              }
+            }
+          }
+        },
+        include: {
+          _count: {
+            select: {
+              tagsToNote: {
+                where: {
+                  note: {
+                    isRecycle: false
+                  }
+                }
+              }
+            }
+          }
         },
         orderBy: {
           sortOrder: 'asc'
