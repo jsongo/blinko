@@ -7,18 +7,18 @@ import { VitePWA } from 'vite-plugin-pwa'
 const host = process.env.TAURI_DEV_HOST || '0.0.0.0';
 const EXPRESS_PORT = 1111;
 
+// Docker 构建专用配置 - 优化速度
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    react(), 
+    react(),
     tailwindcss(),
     ...(!process.env.DISABLE_PWA ? [
       VitePWA({
         devOptions: {
-          enabled: false  // Disable PWA in development to prevent caching issues
+          enabled: false
         },
         injectRegister: 'auto',
-        // disable: process.env.NODE_ENV === 'development',
         registerType: 'autoUpdate',
         includeAssets: ['icons/Square*.png'],
         manifest: {
@@ -95,42 +95,38 @@ export default defineConfig({
     outDir: "../dist/public",
     emptyOutDir: true,
     chunkSizeWarningLimit: 2000,
+    // Docker 构建优化: 简化 rollup 配置
     rollupOptions: {
       external: ['tauri-plugin-blinko-api'],
       output: {
-        manualChunks: (id) => {
-          if (id.includes('node_modules/react') || 
-              id.includes('node_modules/react-dom') || 
-              id.includes('node_modules/react-router-dom')) {
-            return 'react-vendor';
-          }
-          
-          if (id.includes('node_modules/@react-') || 
-              id.includes('node_modules/react-') || 
-              id.includes('node_modules/@ui-') || 
-              id.includes('node_modules/@headlessui') || 
-              id.includes('node_modules/headlessui')) {
-            return 'ui-components';
-          }
-          
-          if (id.includes('node_modules/lodash') || 
-              id.includes('node_modules/axios') || 
-              id.includes('node_modules/date-fns')) {
-            return 'utils';
-          }
-        }
-      }
-    }
+        // 使用简单的 chunk 策略,避免复杂的路径匹配
+        manualChunks: undefined  // 让 Vite 自动处理,更快!
+      },
+      // 增加并行度 - GitHub Actions 有 4 核心
+      maxParallelFileOps: 4,  // 默认 20,在 QEMU 中减少以避免上下文切换
+    },
+    // 跳过不必要的操作
+    reportCompressedSize: false,  // 跳过 gzip 大小计算
+    minify: 'esbuild',  // esbuild 比 terser 快
+    // esbuild 优化
+    target: 'es2020',  // 现代浏览器,减少转换
+  },
+  esbuild: {
+    // 禁用 legal comments 以加速
+    legalComments: 'none',
+    // 减少 minify 的工作量
+    minifyIdentifiers: true,
+    minifySyntax: true,
+    minifyWhitespace: true,
   },
   clearScreen: false,
   server: {
-    // Port will be set by ViteExpress in development, or used directly in standalone mode
-    port: EXPRESS_PORT,
+    port: 5173,
     strictPort: false,
     host: host || false,
     allowedHosts: true,
     hmr: {
-      overlay: false  // Disable error overlay to see the actual page
+      overlay: false
     },
     watch: {
       ignored: ["**/src-tauri/**", "**/node_modules/**", "**/.git/**"],
@@ -147,6 +143,7 @@ export default defineConfig({
   cacheDir: 'node_modules/.vite',
   experimental: {
     renderBuiltUrl: (filename) => ({ relative: true }),
-    hmrPartialAccept: true
-  }
+  },
+  // Docker 构建优化
+  logLevel: 'info',  // 输出更多日志,方便调试
 });

@@ -99,13 +99,21 @@ RUN echo "Building backend with ${BUILD_MEMORY}MB memory limit..." && \
     export NODE_OPTIONS="--max-old-space-size=${BUILD_MEMORY}" && \
     cd server && bun run build:web && cd ..
 
-# 再构建 frontend
-RUN echo "Building frontend with ${BUILD_MEMORY}MB memory limit..." && \
-    echo "Memory limit: ${BUILD_MEMORY}" && \
+# 再构建 frontend (使用 Docker 优化配置)
+RUN echo "======================================" && \
+    echo "Building frontend with ${BUILD_MEMORY}MB memory limit..." && \
+    echo "Using optimized Docker config: vite.config.docker.ts" && \
+    echo "Available CPU cores: $(nproc)" && \
+    echo "Start time: $(date '+%Y-%m-%d %H:%M:%S')" && \
+    echo "======================================" && \
     cd app && \
     DISABLE_PWA=true \
     NODE_OPTIONS="--max-old-space-size=${BUILD_MEMORY}" \
-    bun run ../node_modules/.bin/vite build && \
+    UV_THREADPOOL_SIZE=4 \
+    bun run ../node_modules/.bin/vite build --config vite.config.docker.ts --logLevel info && \
+    echo "======================================" && \
+    echo "Frontend build completed: $(date '+%Y-%m-%d %H:%M:%S')" && \
+    echo "======================================" && \
     cd ..
 
 RUN echo "Starting build:seed..." && \
