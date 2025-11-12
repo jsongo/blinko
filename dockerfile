@@ -78,15 +78,21 @@ RUN echo "Checking Prisma Client..." && \
     ls -la node_modules/.prisma/client 2>/dev/null || bunx prisma generate
 
 # 构建应用 (分开构建以减少内存压力)
+# 注意：本地构建需要至少 8GB Docker 内存
+# 推荐使用 GitHub Actions 云端构建（见 BUILD_DOCKER_CLOUD.md）
 ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 # 先构建 backend
 RUN echo "Building backend..." && \
     cd server && bun run build:web && cd ..
 
-# 再构建 frontend (单独构建避免内存爆炸)
+# 再构建 frontend
 RUN echo "Building frontend..." && \
-    cd app && NODE_OPTIONS="--max-old-space-size=2048" bun run ../node_modules/.bin/vite build && cd ..
+    cd app && \
+    DISABLE_PWA=true \
+    NODE_OPTIONS="--max-old-space-size=2048" \
+    bun run ../node_modules/.bin/vite build && \
+    cd ..
 
 RUN echo "Starting build:seed..." && \
     bun run build:seed 2>&1 || (echo "Build seed failed! Check the error above." && exit 1)

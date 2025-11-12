@@ -1,0 +1,156 @@
+name: Simple Build - macOS ARM64 & Android
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g. 1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  # macOS ARM64 Build
+  build-macos-arm64:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.2.8
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+          cache-on-failure: true
+
+      - name: Update version in tauri.conf.json
+        run: |
+          jq '.version = "${{ github.event.inputs.version }}"' app/src-tauri/tauri.conf.json > tmp.json && mv tmp.json app/src-tauri/tauri.conf.json
+          echo "Updated version to ${{ github.event.inputs.version }}"
+          cat app/src-tauri/tauri.conf.json
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build Frontend
+        run: |
+          cd app
+          bun run build:no-pwa
+
+      - name: Build macOS ARM64 App
+        run: |
+          cd app
+          bun run tauri build --target aarch64-apple-darwin
+
+      - name: Upload macOS ARM64 Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: blinko-macos-arm64-${{ github.event.inputs.version }}
+          path: |
+            app/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+            app/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz
+          retention-days: 7
+
+  # Android Build
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        run: sdkmanager "ndk;27.0.11902837"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.2.8
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+          cache-on-failure: true
+
+      - name: Update version in tauri.conf.json
+        run: |
+          jq '.version = "${{ github.event.inputs.version }}"' app/src-tauri/tauri.conf.json > tmp.json && mv tmp.json app/src-tauri/tauri.conf.json
+          echo "Updated version to ${{ github.event.inputs.version }}"
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run Prisma Generate
+        run: bun run prisma:generate
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0.0-alpha"
+
+      - name: Create Keystore (Debug)
+        run: |
+          mkdir -p ~/.android
+          # Generate a debug keystore (for testing only)
+          keytool -genkey -v -keystore ~/.android/debug.keystore \
+            -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+          # Create keystore properties
+          mkdir -p app/src-tauri/gen/android
+          cat > app/src-tauri/gen/android/keystore.properties << EOF
+          password=android
+          keyAlias=androiddebugkey
+          storeFile=$HOME/.android/debug.keystore
+          EOF
+
+      - name: Build Android APK
+        run: |
+          cd app
+          bun run tauri:android:build
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
+
+      - name: Rename APK
+        run: |
+          cd app/src-tauri/gen/android/app/build/outputs/apk/universal/release
+          mv app-universal-release.apk Blinko_${{ github.event.inputs.version }}_universal.apk
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: blinko-android-${{ github.event.inputs.version }}
+          path: app/src-tauri/gen/android/app/build/outputs/apk/universal/release/Blinko_${{ github.event.inputs.version }}_universal.apk
+          retention-days: 7

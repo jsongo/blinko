@@ -14,6 +14,14 @@ services:
       args:
         USE_MIRROR: "true"
       dockerfile: ./dockerfile
+      # 增加构建时共享内存
+      shm_size: '2gb'
+    # 运行时资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
     environment:
       NODE_ENV: production
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:1111}
