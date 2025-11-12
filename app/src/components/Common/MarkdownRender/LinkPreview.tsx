@@ -34,28 +34,28 @@ export const LinkPreview = ({ href, text }: LinkPreviewProps) => {
   };
 
   return (
-    <div className="link-preview-container">
+    <span className="link-preview-container inline-block w-full">
       <a href={href} target="_blank" rel="noopener noreferrer">{text}</a>
       {store.previewData?.value?.title && (
-        <div 
-          onClick={handleCardClick} 
-          className='p-2 my-1 bg-secondbackground rounded-xl select-none cursor-pointer'
+        <span
+          onClick={handleCardClick}
+          className='block p-2 my-1 bg-secondbackground rounded-xl select-none cursor-pointer'
         >
-          <div className='flex items-center gap-2 w-full'>
-            <div className='font-bold truncate text-sm'>{store.previewData.value?.title}</div>
-            {store.previewData.value?.favicon && 
-              <Image 
-                fallbackSrc="/fallback.png" 
-                className='flex-1 rounded-full ml-auto min-w-[16px]' 
-                src={store.previewData.value.favicon} 
-                width={16} 
+          <span className='flex items-center gap-2 w-full'>
+            <span className='font-bold truncate text-sm'>{store.previewData.value?.title}</span>
+            {store.previewData.value?.favicon &&
+              <Image
+                fallbackSrc="/fallback.png"
+                className='flex-1 rounded-full ml-auto min-w-[16px]'
+                src={store.previewData.value.favicon}
+                width={16}
                 height={16}
               />
             }
-          </div>
-          <div className='text-desc truncate text-xs'>{store.previewData.value?.description}</div>
-        </div>
+          </span>
+          <span className='block text-desc truncate text-xs'>{store.previewData.value?.description}</span>
+        </span>
       )}
-    </div>
+    </span>
   );
 }; 

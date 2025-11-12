@@ -1,4 +1,5 @@
 import { observer } from "mobx-react-lite";
+import { runInAction } from "mobx";
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Button, Input } from '@heroui/react';
 import { Icon } from '@/components/Common/Iconify/icons';
 import { useTranslation } from 'react-i18next';
@@ -93,7 +94,9 @@ export const ResourceContextMenu = observer(({ onTrigger }: ResourceContextMenuP
                   }
                 );
                 RootStore.Get(DialogStore).close();
-                resourceStore.refreshTicker++;
+                runInAction(() => {
+                  resourceStore.refreshTicker++;
+                });
               }}
             >
               {t('confirm')}

@@ -5,7 +5,7 @@ import { useMemo, useCallback } from "react";
 import { ScrollArea } from "@/components/Common/ScrollArea";
 import { Icon } from '@/components/Common/Iconify/icons';
 import { useTranslation } from "react-i18next";
-import { DragDropContext, Droppable } from 'react-beautiful-dnd-next';
+import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { toJS } from "mobx";
 import { MemoizedResourceItem } from "@/components/BlinkoResource/ResourceItem";
 import { ResourceMultiSelectPop } from "@/components/BlinkoResource/ResourceMultiSelectpop";
@@ -24,6 +24,35 @@ const Page = observer(() => {
   );
 
   const selectedItems = resourceStore.selectedItems;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over) return;
+
+    const sourceIndex = resources.findIndex(r => 
+      r.isFolder ? `folder-${r.folderName}` === active.id : `file-${r.id}` === active.id
+    );
+    const destIndex = resources.findIndex(r => 
+      r.isFolder ? `folder-${r.folderName}` === over.id : `file-${r.id}` === over.id
+    );
+
+    if (sourceIndex === -1 || destIndex === -1) return;
+
+    // 调用 resourceStore 的 handleDragEnd 方法
+    resourceStore.handleDragEnd({
+      source: { index: sourceIndex },
+      destination: { index: destIndex }
+    });
+  }, [resources, resourceStore]);
 
   const handleMoveSelectedToParent = useCallback(async () => {
     if (!resourceStore.currentFolder) return;
@@ -45,7 +74,7 @@ const Page = observer(() => {
 
   return (
     <>
-      <DragDropContext onDragEnd={resourceStore.handleDragEnd}>
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <ScrollArea
           fixMobileTopBar
           onBottom={resourceStore.loadNextPage}
@@ -180,33 +209,24 @@ const Page = observer(() => {
           />
           <PhotoProvider>
             {resources.length > 0 && (
-              <Droppable droppableId="resources">
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className="py-2 min-h-[200px]"
-                  >
-                    {resources.map((item, index) => (
-                      <MemoizedResourceItem
-                        key={item.isFolder ? `folder-${item.folderName}` : `file-${item.id}`}
-                        item={item}
-                        index={index}
-                        isSelected={selectedItems.has(item.id!)}
-                        onSelect={resourceStore.toggleSelect}
-                        onFolderClick={(folder) => resourceStore.navigateToFolder(folder, navigate)}
-                      />
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
+              <div className="py-2 min-h-[200px]">
+                {resources.map((item, index) => (
+                  <MemoizedResourceItem
+                    key={item.isFolder ? `folder-${item.folderName}` : `file-${item.id}`}
+                    item={item}
+                    index={index}
+                    isSelected={selectedItems.has(item.id!)}
+                    onSelect={resourceStore.toggleSelect}
+                    onFolderClick={(folder) => resourceStore.navigateToFolder(folder, navigate)}
+                  />
+                ))}
+              </div>
             )}
 
           </PhotoProvider>
 
         </ScrollArea>
-      </DragDropContext>
+      </DndContext>
       <ResourceMultiSelectPop />
     </>
   );

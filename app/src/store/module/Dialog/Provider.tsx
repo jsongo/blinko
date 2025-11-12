@@ -41,8 +41,11 @@ const CloseButton = ({ onClose }: { onClose: () => void }) => (
 const Dialog = observer(() => {
   const modal = RootStore.Get(DialogStore);
   const isPc = useMediaQuery('(min-width: 768px)')
-  const { className, classNames, isOpen, placement, title, size, content, isDismissable, onlyContent = false, noPadding = false, showOnlyContentCloseButton = false, transparent = false } = modal;
-  const Content = typeof content === 'function' ? content : () => content;
+  const { className, classNames, isOpen, placement, title, size, isDismissable, onlyContent = false, noPadding = false, showOnlyContentCloseButton = false, transparent = false } = modal;
+  const Content = typeof modal.content === 'function' ? () => {
+    const ContentComponent = modal.content as ((props: any) => React.ReactNode);
+    return <ContentComponent />;
+  } : () => modal.content;
   const isIOS = useIsIOS()
   useHistoryBack({
     state: isOpen,

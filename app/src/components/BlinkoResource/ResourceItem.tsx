@@ -5,7 +5,8 @@ import filesize  from 'filesize';
 import dayjs from '@/lib/dayjs';
 import { FileIcons } from '@/components/Common/AttachmentRender/FileIcon';
 import { memo, useCallback, useMemo } from 'react';
-import { Draggable, Droppable } from 'react-beautiful-dnd-next';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
 import { type ResourceType } from '@shared/lib/types';
 import { ResourceContextMenu } from './ResourceContextMenu';
@@ -104,7 +105,8 @@ interface ResourceCardProps {
   onSelect: (id: number) => void;
   isDragging?: boolean;
   isDraggingOver?: boolean;
-  // children?: React.ReactNode;
+  dragHandleProps?: any;
+  style?: React.CSSProperties;
 }
 
 const getCardClassName = (isDragging?: boolean, isDraggingOver?: boolean) => {
@@ -121,7 +123,7 @@ const getCardClassName = (isDragging?: boolean, isDraggingOver?: boolean) => {
   return baseClasses;
 };
 
-const ResourceCard = observer(({ item, isSelected, onSelect, isDragging, isDraggingOver }: ResourceCardProps) => {
+const ResourceCard = observer(({ item, isSelected, onSelect, isDragging, isDraggingOver, dragHandleProps, style }: ResourceCardProps) => {
   const { t } = useTranslation();
   const resourceStore = RootStore.Get(ResourceStore);
   const isImage =
@@ -153,12 +155,13 @@ const ResourceCard = observer(({ item, isSelected, onSelect, isDragging, isDragg
 
   const cardProps = {
     className: getCardClassName(isDragging, isDraggingOver),
+    style,
   };
 
   if (item.isFolder) {
     return (
       <Card {...cardProps} shadow="none">
-        <div className="flex items-center gap-4 ml-[45px]">
+        <div className="flex items-center gap-4 ml-[45px]" {...dragHandleProps}>
           <div className="w-[36px] h-[36px] ml-[-7px] flex items-center justify-center">
             <Icon icon="material-symbols:folder" className="w-full h-full text-yellow-500" />
           </div>
@@ -173,7 +176,7 @@ const ResourceCard = observer(({ item, isSelected, onSelect, isDragging, isDragg
 
   return (
     <Card {...cardProps} shadow="none">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4" {...dragHandleProps}>
         <Checkbox isSelected={isSelected} onChange={() => onSelect(item.id!)} className="z-10" />
         <ResourceItemPreview item={item} />
         <ResourceContextMenu onTrigger={handleContextMenu} />
@@ -184,6 +187,19 @@ const ResourceCard = observer(({ item, isSelected, onSelect, isDragging, isDragg
 
 const ResourceItem = observer(({ item, index, onSelect, isSelected, onFolderClick }: ResourceItemProps) => {
   const { t } = useTranslation();
+  
+  const itemId = item.isFolder ? `folder-${item.folderName}` : `file-${item.id}`;
+  
+  const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } = useDraggable({
+    id: itemId,
+    data: { item, index }
+  });
+
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: itemId,
+    disabled: !item.isFolder,
+    data: { item, index }
+  });
 
   const handleClick = useMemo(
     () => (e: React.MouseEvent) => {
@@ -195,51 +211,37 @@ const ResourceItem = observer(({ item, index, onSelect, isSelected, onFolderClic
     [item.isFolder, item.folderName, onFolderClick],
   );
 
-  const draggableId = useMemo(() => (item.isFolder ? `folder-${item.folderName}` : String(item.id)), [item.isFolder, item.folderName, item.id]);
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: isDragging ? 'none' : 'transform 200ms ease',
+  };
 
-  const droppableId = useMemo(() => (item.isFolder ? `folder-${item.folderName}` : undefined), [item.isFolder, item.folderName]);
+  const setRefs = useCallback((node: HTMLDivElement | null) => {
+    setDragRef(node);
+    setDropRef(node);
+  }, [setDragRef, setDropRef]);
 
   return (
-    <Draggable draggableId={draggableId} index={index} isDragDisabled={item.isFolder}>
-      {(provided: any, snapshot: any) => {
-        const draggableStyle = {
-          cursor: item.isFolder ? 'pointer' : 'default',
-          ...provided.draggableProps.style,
-          transform: item.isFolder ? 'none' : provided.draggableProps.style?.transform,
-        };
-
-        return (
-          <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={`relative group`} onClick={handleClick} style={draggableStyle}>
-            <motion.div
-              // initial={{ opacity: 0, y: 20 }}
-              // animate={{ opacity: 1, y: 0 }}
-              // transition={{
-              //   duration: 0.2,
-              //   delay: index * 0.05,
-              //   ease: 'easeOut',
-              // }}
-            >
-              {item.isFolder ? (
-                <Droppable droppableId={droppableId!}>
-                  {(dropProvided, dropSnapshot) => (
-                    <div ref={dropProvided.innerRef} {...dropProvided.droppableProps} className="w-full h-full relative">
-                      <ResourceCard item={item} isSelected={isSelected} onSelect={onSelect} isDraggingOver={dropSnapshot.isDraggingOver} />
-                      {dropProvided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              ) : (
-                <ResourceCard item={item} isSelected={isSelected} onSelect={onSelect} isDragging={snapshot.isDragging} />
-              )}
-            </motion.div>
-          </div>
-        );
-      }}
-    </Draggable>
+    <div 
+      ref={setRefs}
+      className={`relative group`} 
+      onClick={handleClick} 
+      style={{ cursor: item.isFolder ? 'pointer' : 'default' }}
+    >
+      <motion.div>
+        <ResourceCard 
+          item={item} 
+          isSelected={isSelected} 
+          onSelect={onSelect}
+          isDragging={isDragging}
+          isDraggingOver={isOver}
+          dragHandleProps={{ ...attributes, ...listeners }}
+          style={style}
+        />
+      </motion.div>
+    </div>
   );
-});
-
-export const MemoizedResourceItem = memo(ResourceItem, (prevProps, nextProps) => {
+});export const MemoizedResourceItem = memo(ResourceItem, (prevProps, nextProps) => {
   const prevItem = toJS(prevProps.item);
   const nextItem = toJS(nextProps.item);
 

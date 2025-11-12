@@ -1,5 +1,5 @@
 import { Store } from "./standard/base";
-import { makeAutoObservable } from "mobx";
+import { makeAutoObservable, runInAction } from "mobx";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
 import { BlinkoStore } from "./blinkoStore";
 import { RootStore } from ".";
@@ -205,7 +205,9 @@ export class ResourceStore implements Store {
             "folderName": newName
           };
 
-          blinko.resourceList.value = [newFolder, ...currentResources];
+          runInAction(() => {
+            blinko.resourceList.value = [newFolder, ...currentResources];
+          });
           RootStore.Get(DialogStore).close();
         };
 

@@ -488,7 +488,7 @@ export const BlinkoRightClickMenu = observer(() => {
       <EditItem />
     </ContextMenuItem>
 
-    {!isDetailPage ? (
+    {!isDetailPage && (
       <>
         <ContextMenuItem onClick={() => handleMultiSelect()}>
           <MutiSelectItem />
@@ -497,7 +497,7 @@ export const BlinkoRightClickMenu = observer(() => {
           <SelectAllItem />
         </ContextMenuItem>
       </>
-    ) : <></>}
+    )}
 
     <ContextMenuItem onClick={() => ShowEditTimeModel()}>
       <EditTimeItem />
@@ -515,29 +515,29 @@ export const BlinkoRightClickMenu = observer(() => {
       <ArchivedItem />
     </ContextMenuItem>
 
-    {!blinko.curSelectedNote?.isRecycle ? (
+    {!blinko.curSelectedNote?.isRecycle && (
       <ContextMenuItem onClick={handlePublic}>
-      <PublicItem />
-    </ContextMenuItem>
-    ) : <></>}
+        <PublicItem />
+      </ContextMenuItem>
+    )}
 
-    {!isPc ? (
+    {!isPc && (
       <ContextMenuItem onClick={handleComment}>
         <CommentItem />
       </ContextMenuItem>
-    ) : <></>}
+    )}
 
-    {blinko.config.value?.mainModelId ? (
+    {blinko.config.value?.mainModelId && (
       <ContextMenuItem onClick={handleAITag}>
         <AITagItem />
       </ContextMenuItem>
-    ) : <></>}
+    )}
 
-    {blinko.config.value?.mainModelId ? (
+    {blinko.config.value?.mainModelId && (
       <ContextMenuItem onClick={handleRelatedNotes}>
         <RelatedNotesItem />
       </ContextMenuItem>
-    ) : <></>}
+    )}
 
     {pluginApi.customRightClickMenus.map((menu) => (
       <ContextMenuItem key={menu.name} onClick={() => menu.onClick(blinko.curSelectedNote!)} disabled={menu.disabled}>
