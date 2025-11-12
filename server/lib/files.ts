@@ -461,11 +461,8 @@ export class FileService {
       const oldFilePath = path.join(UPLOAD_FILE_PATH, oldPath.replace('/api/file/', ''));
       const newFilePath = path.join(UPLOAD_FILE_PATH, newPath.replace('/api/file/', ''));
 
-      console.log('Moving file:', { oldFilePath, newFilePath, targetDir: path.dirname(newFilePath) });
       await fs.mkdir(path.dirname(newFilePath), { recursive: true });
-      console.log('Created directory:', path.dirname(newFilePath));
       await fs.rename(oldFilePath, newFilePath);
-      console.log('Renamed file successfully');
 
       try {
         const oldDir = path.dirname(oldFilePath);

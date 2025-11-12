@@ -1,11 +1,9 @@
 /* Override react-contexify styles - following original contextmenu design */
 
-/* Light mode - Menu container */
+/* Base menu container styles */
 .react-contexify,
 .contexify {
-  padding: 2px !important;
-  padding-top: 6px !important;
-  padding-bottom: 6px !important;
+  padding: 6px 2px !important;
   box-shadow: 1px 1px 7px 3px #b1b1b142 !important;
   border-radius: 17px !important;
   border: 2px solid #808080 !important;
@@ -13,128 +11,32 @@
   min-width: 200px !important;
 }
 
-/* Light mode - Menu items */
+/* Base menu item styles */
 .react-contexify .contexify__item,
 .contexify .contexify__item {
   border-radius: 12px !important;
-  margin-left: 3px !important;
-  margin-right: 3px !important;
+  margin: 0 3px !important;
   color: black !important;
   background-color: transparent !important;
   font-weight: 500 !important;
   transition: background-color 0.2s ease !important;
 }
 
-/* Light mode - Menu items hover */
-.react-contexify .contexify__item:hover,
-.contexify .contexify__item:hover {
+.react-contexify .contexify__item:hover:not(.contexify__item--disabled),
+.contexify .contexify__item:hover:not(.contexify__item--disabled) {
   background-color: #f8f8f8 !important;
 }
 
-/* Dark mode - Menu container (when html has dark class) */
-:where(html.dark, html[class~="dark"], [data-theme="dark"]) .react-contexify,
-:where(html.dark, html[class~="dark"], [data-theme="dark"]) .contexify {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
-  border: 2px solid #3a3a3a !important;
-  background-color: #1c1c1c !important;
-  --contexify-item-color: #ffffff !important;
-  --contexify-menu-bgColor: #1c1c1c !important;
-  --contexify-activeItem-bgColor: #2d2d2d !important;
-}
-
-/* More aggressive dark mode selectors for Portal-rendered menus */
-html.dark ~ * .react-contexify,
-html.dark ~ * .contexify,
-html[class~="dark"] ~ * .react-contexify,
-html[class~="dark"] ~ * .contexify {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
-  border: 2px solid #3a3a3a !important;
-  background-color: #1c1c1c !important;
-  --contexify-item-color: #ffffff !important;
-  --contexify-menu-bgColor: #1c1c1c !important;
-  --contexify-activeItem-bgColor: #2d2d2d !important;
-}
-
-/* Dark mode - Menu items */
-:where(html.dark, html[class~="dark"]) .react-contexify .contexify__item,
-:where(html.dark, html[class~="dark"]) .contexify .contexify__item {
-  color: #ffffff !important;
-}
-
-:where(html.dark, html[class~="dark"]) .react-contexify .contexify__item .contexify_itemContent,
-:where(html.dark, html[class~="dark"]) .contexify .contexify__item .contexify_itemContent,
-:where(html.dark, html[class~="dark"]) .react-contexify .contexify__item .contexify_itemContent *,
-:where(html.dark, html[class~="dark"]) .contexify .contexify__item .contexify_itemContent * {
-  color: #ffffff !important;
-}
-
-html.dark ~ * .react-contexify .contexify__item,
-html.dark ~ * .contexify .contexify__item {
-  color: #ffffff !important;
-}
-
-html.dark ~ * .react-contexify .contexify__item .contexify_itemContent,
-html.dark ~ * .contexify .contexify__item .contexify_itemContent,
-html.dark ~ * .react-contexify .contexify__item .contexify_itemContent *,
-html.dark ~ * .contexify .contexify__item .contexify_itemContent * {
-  color: #ffffff !important;
-}
-
-/* Exception for specifically colored text (like the blue '笔记') */
-:where(html.dark, html[class~="dark"]) .react-contexify .contexify__item .text-blue-500,
-:where(html.dark, html[class~="dark"]) .contexify .contexify__item .text-blue-500 {
-  color: rgb(59 130 246) !important;
-}
-
-:where(html.dark, html[class~="dark"]) .react-contexify .contexify__item .text-yellow-500,
-:where(html.dark, html[class~="dark"]) .contexify .contexify__item .text-yellow-500 {
-  color: rgb(234 179 8) !important;
-}
-
-/* Dark mode - Menu items hover */
-:where(html.dark, html[class~="dark"]) .react-contexify .contexify__item:hover,
-:where(html.dark, html[class~="dark"]) .contexify .contexify__item:hover {
-  background-color: #2d2d2d !important;
-}
-
-html.dark ~ * .react-contexify .contexify__item:hover,
-html.dark ~ * .contexify .contexify__item:hover {
-  background-color: #2d2d2d !important;
-}
-
-/* Disabled state */
-.react-contexify .contexify__item--disabled {
-  opacity: 0.5 !important;
-  cursor: not-allowed !important;
-}
-
-.contexify .contexify__item--disabled {
-  opacity: 0.5 !important;
-  cursor: not-allowed !important;
-}
-
-.contexify .contexify__separator {
-  margin: 4px 0 !important;
-  border-top: 1px solid var(--border) !important;
-}
-
-/* Direct dark-menu class approach (most reliable for Portal components) */
+/* Dark mode styles (using .dark-menu class added by JS) */
 .react-contexify.dark-menu,
 .contexify.dark-menu {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
-  border: 2px solid #3a3a3a !important;
+  border-color: #3a3a3a !important;
   background-color: #1c1c1c !important;
-  /* Override CSS variables for dark mode */
-  --contexify-item-color: #ffffff !important;
-  --contexify-menu-bgColor: #1c1c1c !important;
-  --contexify-activeItem-bgColor: #2d2d2d !important;
 }
 
 .react-contexify.dark-menu .contexify__item,
-.contexify.dark-menu .contexify__item {
-  color: #ffffff !important;
-}
-
+.contexify.dark-menu .contexify__item,
 .react-contexify.dark-menu .contexify__item .contexify_itemContent,
 .contexify.dark-menu .contexify__item .contexify_itemContent,
 .react-contexify.dark-menu .contexify__item .contexify_itemContent *,
@@ -142,8 +44,8 @@ html.dark ~ * .contexify .contexify__item:hover {
   color: #ffffff !important;
 }
 
-.react-contexify.dark-menu .contexify__item:hover,
-.contexify.dark-menu .contexify__item:hover {
+.react-contexify.dark-menu .contexify__item:hover:not(.contexify__item--disabled),
+.contexify.dark-menu .contexify__item:hover:not(.contexify__item--disabled) {
   background-color: #2d2d2d !important;
 }
 
@@ -158,37 +60,17 @@ html.dark ~ * .contexify .contexify__item:hover {
   color: rgb(234 179 8) !important;
 }
 
-/* Media query based dark mode detection (as fallback) */
-@media (prefers-color-scheme: dark) {
-  body:has(html.dark) .react-contexify,
-  body:has(html.dark) .contexify,
-  /* If html.dark exists anywhere in the tree */
-  .react-contexify:has(~ html.dark),
-  .contexify:has(~ html.dark) {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
-    border: 2px solid #3a3a3a !important;
-    background-color: #1c1c1c !important;
-    --contexify-item-color: #ffffff !important;
-    --contexify-menu-bgColor: #1c1c1c !important;
-    --contexify-activeItem-bgColor: #2d2d2d !important;
-  }
+/* Disabled state */
+.react-contexify .contexify__item--disabled,
+.contexify .contexify__item--disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
 
-  body:has(html.dark) .react-contexify .contexify__item,
-  body:has(html.dark) .contexify .contexify__item {
-    color: #ffffff !important;
-  }
-
-  body:has(html.dark) .react-contexify .contexify__item .contexify_itemContent,
-  body:has(html.dark) .contexify .contexify__item .contexify_itemContent,
-  body:has(html.dark) .react-contexify .contexify__item .contexify_itemContent *,
-  body:has(html.dark) .contexify .contexify__item .contexify_itemContent * {
-    color: #ffffff !important;
-  }
-
-  body:has(html.dark) .react-contexify .contexify__item:hover,
-  body:has(html.dark) .contexify .contexify__item:hover {
-    background-color: #2d2d2d !important;
-  }
+/* Separator */
+.contexify .contexify__separator {
+  margin: 4px 0 !important;
+  border-top: 1px solid var(--border) !important;
 }
 
 /* Animation */

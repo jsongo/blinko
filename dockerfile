@@ -3,7 +3,7 @@
 # ============================================
 FROM oven/bun:1.2.8 AS deps
 
-ARG USE_MIRROR=true
+ARG USE_MIRROR=false
 
 WORKDIR /app
 
