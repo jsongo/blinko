@@ -24,7 +24,7 @@ services:
     volumes:
       - ./data:/app/.blinko
     ports:
-      - ${BLINKO_PORT:-27539}:1111
+      - ${BLINKO_PORT:-1111}:1111
     healthcheck:
       test: [ "CMD", "wget", "--spider", "http://blinko-website:1111/" ]
       interval: 30s
