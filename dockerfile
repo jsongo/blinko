@@ -1,53 +1,105 @@
-# Build Stage
-FROM oven/bun:1.2.8 AS builder
+# ============================================
+# Stage 1: Dependencies - 安装构建时依赖 (会被缓存)
+# ============================================
+FROM oven/bun:1.2.8 AS deps
 
-# Add Build Arguments
-ARG USE_MIRROR=false
+ARG USE_MIRROR=true
 
 WORKDIR /app
 
-# Set Sharp environment variables to speed up ARM installation
 ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1
 ENV npm_config_sharp_binary_host="https://npmmirror.com/mirrors/sharp"
 ENV npm_config_sharp_libvips_binary_host="https://npmmirror.com/mirrors/sharp-libvips"
-
-# Set Prisma environment variables to optimize installation
 ENV PRISMA_ENGINES_MIRROR="https://registry.npmmirror.com/-/binary/prisma"
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
+# 跳过一些耗时的 postinstall
+ENV SKIP_POSTINSTALL=1
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
-# Copy Project Files
-COPY . .
-
-# Configure Mirror Based on USE_MIRROR Parameter
+# 配置镜像
 RUN if [ "$USE_MIRROR" = "true" ]; then \
     echo "Using Taobao Mirror to Install Dependencies" && \
-    echo '{ "install": { "registry": "https://registry.npmmirror.com" } }' > .bunfig.json; \
-    else \
-    echo "Using Default Mirror to Install Dependencies"; \
+    echo '{ "install": { "registry": "https://registry.npmmirror.com" } }' > .bunfig.json && \
+    cat .bunfig.json; \
     fi
 
-# Pre-install Sharp for ARM architecture
+# 只复制依赖文件 (package.json 不变时这层会被缓存)
+COPY package.json bun.lock turbo.json ./
+COPY tsconfig*.json ./
+COPY .npmrc ./
+COPY prisma ./prisma
+COPY server/package.json server/tsconfig*.json ./server/
+COPY app/package.json app/tsconfig*.json ./app/
+COPY shared/package.json shared/tsconfig*.json ./shared/
+COPY blinko-types/package.json ./blinko-types/
+COPY shared ./shared
+
+# 复制 app/tauri-plugin-blinko (Web 构建需要这个插件)
+COPY app/tauri-plugin-blinko ./app/tauri-plugin-blinko
+
+# 安装依赖 - 简化输出
+RUN echo "========================" && \
+    echo "Starting bun install..." && \
+    echo "Bun version:" && bun --version && \
+    echo "========================" && \
+    bun install --unsafe-perm 2>&1 | grep -E "(packages installed|error|warn|failed)" || bun install --unsafe-perm && \
+    echo "========================" && \
+    echo "Installation completed!" && \
+    echo "========================"
+
+# ARM 架构 sharp 预安装
 RUN if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
-    echo "Detected ARM architecture, installing sharp platform-specific dependencies..." && \
-    mkdir -p /tmp/sharp-cache && \
-    export SHARP_CACHE_DIRECTORY=/tmp/sharp-cache && \
+    echo "Detected ARM architecture, installing sharp..." && \
     bun install --platform=linux --arch=arm64 sharp@0.34.1 --no-save --unsafe-perm || \
     bun install --force @img/sharp-linux-arm64 --no-save; \
     fi
 
-# Install Dependencies and Build App
-RUN bun install --unsafe-perm
+# 生成 Prisma Client (schema 不变时会使用缓存)
 RUN bunx prisma generate
 
-# Build App - Only this will re-run when source code changes
-RUN bun run build:web
-RUN bun run build:seed
 
+# ============================================
+# Stage 2: Builder - 构建应用 (只有代码变化时才重新构建)
+# ============================================
+FROM oven/bun:1.2.8 AS builder
+
+WORKDIR /app
+
+# 从 deps 阶段复制 node_modules 和 Prisma Client (避免重新安装)
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package.json ./package.json
+
+# 复制源代码
+COPY . .
+
+# 确保 Prisma Client 已生成
+RUN echo "Checking Prisma Client..." && \
+    ls -la node_modules/.prisma/client 2>/dev/null || bunx prisma generate
+
+# 构建应用 (分开构建以减少内存压力)
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+
+# 先构建 backend
+RUN echo "Building backend..." && \
+    cd server && bun run build:web && cd ..
+
+# 再构建 frontend (单独构建避免内存爆炸)
+RUN echo "Building frontend..." && \
+    cd app && NODE_OPTIONS="--max-old-space-size=2048" bun run ../node_modules/.bin/vite build && cd ..
+
+RUN echo "Starting build:seed..." && \
+    bun run build:seed 2>&1 || (echo "Build seed failed! Check the error above." && exit 1)
+
+# 生成启动脚本
 RUN printf '#!/bin/sh\necho "Current Environment: $NODE_ENV"\nnpx prisma migrate deploy\nnode server/seed.js\nnode server/index.js\n' > start.sh && \
     chmod +x start.sh
 
 
-FROM node:20-alpine as init-downloader
+# ============================================
+# Stage 3: Init Downloader - 下载工具 (会被缓存)
+# ============================================
+FROM node:20-alpine AS init-downloader
 
 WORKDIR /app
 
@@ -56,59 +108,82 @@ RUN wget -qO /app/dumb-init https://github.com/Yelp/dumb-init/releases/download/
     rm -rf /var/cache/apk/*
 
 
-# Runtime Stage - Using Alpine as required
-FROM node:20-alpine AS runner
+# ============================================
+# Stage 4: Runtime Dependencies - 安装运行时依赖 (会被缓存)
+# ============================================
+FROM node:20-alpine AS runtime-deps
 
 ARG USE_MIRROR=true
 
 WORKDIR /app
 
-# Environment Variables
 ENV NODE_ENV=production
-ENV DISABLE_SECURE_COOKIE=false
-ENV TRUST_PROXY=1
 ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1
 ENV npm_config_sharp_binary_host="https://npmmirror.com/mirrors/sharp"
 ENV npm_config_sharp_libvips_binary_host="https://npmmirror.com/mirrors/sharp-libvips"
 
+# 安装构建工具和运行时库
 RUN apk add --no-cache openssl vips-dev python3 py3-setuptools make g++ gcc libc-dev linux-headers && \
     if [ "$USE_MIRROR" = "true" ]; then \
-    echo "Using Taobao Mirror to Install Dependencies" && \
     npm config set registry https://registry.npmmirror.com; \
-    else \
-    echo "Using Default Mirror to Install Dependencies"; \
     fi
 
-# Copy Build Artifacts and Necessary Files
-COPY --from=builder /app/dist ./server
-COPY --from=builder /app/server/lute.min.js ./server/lute.min.js
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
-COPY --from=builder /app/start.sh ./
-COPY --from=init-downloader /app/dumb-init /usr/local/bin/dumb-init
+# 复制 package.json 用于安装依赖 (不变时会使用缓存)
+COPY --from=builder /app/package.json ./package.json
 
-RUN chmod +x ./start.sh && \
-    ls -la start.sh
-
+# ARM 架构 sharp
 RUN if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
-    echo "Detected ARM architecture, installing sharp platform-specific dependencies..." && \
-    mkdir -p /tmp/sharp-cache && \
-    export SHARP_CACHE_DIRECTORY=/tmp/sharp-cache && \
+    echo "Installing ARM sharp..." && \
     npm install --platform=linux --arch=arm64 sharp@0.34.1 --no-save --unsafe-perm || \
     npm install --force @img/sharp-linux-arm64 --no-save; \
     fi
 
-# Install dependencies with --ignore-scripts to skip native compilation
-RUN echo "Installing additional dependencies..." && \
-    npm install @node-rs/crc32 lightningcss sharp@0.34.1 prisma@6.19.0 && \
+# 安装运行时依赖 (package.json 不变时会使用缓存)
+RUN npm install @node-rs/crc32 lightningcss sharp@0.34.1 prisma@6.19.0 && \
     npm install -g prisma@6.19.0 && \
     npm install sqlite3@5.1.7 && \
     npm install llamaindex @langchain/community@0.3.40 && \
-    npm install @libsql/client @libsql/core && \
-    npx prisma generate && \
-    rm -rf /tmp/* && \
-    apk del python3 py3-setuptools make g++ gcc libc-dev && \
+    npm install @libsql/client @libsql/core
+
+# 清理构建工具 (保留 openssl 和 vips-dev)
+RUN apk del python3 py3-setuptools make g++ gcc libc-dev linux-headers && \
     rm -rf /var/cache/apk/* /root/.npm /root/.cache
+
+
+# ============================================
+# Stage 5: Final Runner - 最终运行镜像 (最小化)
+# ============================================
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV DISABLE_SECURE_COOKIE=false
+ENV TRUST_PROXY=1
+
+# 只安装运行时必需的库 (不需要构建工具)
+RUN apk add --no-cache openssl vips-dev && \
+    rm -rf /var/cache/apk/*
+
+# 从各个阶段复制必要文件
+COPY --from=builder /app/dist ./server
+COPY --from=builder /app/server/lute.min.js ./server/lute.min.js
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/start.sh ./
+COPY --from=init-downloader /app/dumb-init /usr/local/bin/dumb-init
+
+# 从 deps 复制 Prisma Client
+COPY --from=deps /app/node_modules/.prisma/client ./node_modules/.prisma/client
+
+# 从 runtime-deps 复制运行时依赖
+COPY --from=runtime-deps /app/node_modules ./node_modules
+COPY --from=runtime-deps /usr/local/lib/node_modules/prisma /usr/local/lib/node_modules/prisma
+COPY --from=runtime-deps /usr/local/bin/prisma /usr/local/bin/prisma
+
+# 重新生成 Prisma Client (确保路径正确)
+RUN npx prisma generate
+
+RUN chmod +x ./start.sh
 
 # Expose Port (Adjust According to Actual Application)
 EXPOSE 1111

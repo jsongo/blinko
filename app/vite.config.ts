@@ -96,6 +96,7 @@ export default defineConfig({
     emptyOutDir: true,
     chunkSizeWarningLimit: 2000,
     rollupOptions: {
+      external: ['tauri-plugin-blinko-api'],
       output: {
         manualChunks: (id) => {
           if (id.includes('node_modules/react') || 

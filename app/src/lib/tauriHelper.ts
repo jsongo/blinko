@@ -8,9 +8,32 @@ import i18n from './i18n'
 import { UserStore } from '@/store/user'
 import { download } from '@tauri-apps/plugin-upload'
 import { downloadDir, publicDir } from '@tauri-apps/api/path'
-import { setStatusBarColor } from 'tauri-plugin-blinko-api'
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+
+// Tauri 插件懒加载缓存
+let tauriPluginBlinkoApi: any = null;
+let tauriPluginPromise: Promise<any> | null = null;
+
+async function getTauriPlugin() {
+    if (tauriPluginBlinkoApi) {
+        return tauriPluginBlinkoApi;
+    }
+    
+    if (!tauriPluginPromise) {
+        tauriPluginPromise = import('tauri-plugin-blinko-api')
+            .then(module => {
+                tauriPluginBlinkoApi = module;
+                return module;
+            })
+            .catch(error => {
+                console.warn('tauri-plugin-blinko-api not available:', error);
+                return null;
+            });
+    }
+    
+    return tauriPluginPromise;
+}
 
 export interface PermissionStatus {
     audio: boolean;
@@ -125,9 +148,16 @@ export async function downloadFromLink(uri: string, filename?: string) {
 
 export async function setTauriTheme(theme: any) {
     if (isAndroid()) {
-        const lightColor = '#f8f8f8';
-        const darkColor = '#000000';
-        setStatusBarColor(theme === 'light' ? lightColor : darkColor);
+        try {
+            const plugin = await getTauriPlugin();
+            if (plugin?.setStatusBarColor) {
+                const lightColor = '#f8f8f8';
+                const darkColor = '#000000';
+                plugin.setStatusBarColor(theme === 'light' ? lightColor : darkColor);
+            }
+        } catch (error) {
+            console.error('Failed to set status bar color:', error);
+        }
     } else if (isDesktop()) {
         try {
             await invoke('set_desktop_theme', { theme });
@@ -182,8 +212,10 @@ export const requestMicrophonePermission = async (): Promise<boolean> => {
             
             if (shouldShowSettings) {
                 try {
-                    const { openAppSettings } = await import('tauri-plugin-blinko-api');
-                    await openAppSettings();
+                    const plugin = await getTauriPlugin();
+                    if (plugin?.openAppSettings) {
+                        await plugin.openAppSettings();
+                    }
                 } catch (error) {
                     console.error('Failed to open app settings:', error);
                     // Fallback: Show instructions
