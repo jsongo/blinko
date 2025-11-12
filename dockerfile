@@ -48,12 +48,13 @@ RUN echo "========================" && \
     echo "Installation completed!" && \
     echo "========================"
 
-# ARM 架构 sharp 预安装
-RUN if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
-    echo "Detected ARM architecture, installing sharp..." && \
-    bun install --platform=linux --arch=arm64 sharp@0.34.1 --no-save --unsafe-perm || \
-    bun install --force @img/sharp-linux-arm64 --no-save; \
-    fi
+# ARM 架构 sharp 预安装 (跳过,因为在 runtime-deps 阶段会统一安装)
+# 在 QEMU 模拟环境中安装容易失败,所以注释掉
+# RUN if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
+#     echo "Detected ARM architecture, installing sharp..." && \
+#     bun install --platform=linux --arch=arm64 sharp@0.34.1 --no-save --unsafe-perm || \
+#     bun install --force @img/sharp-linux-arm64 --no-save; \
+#     fi
 
 # 生成 Prisma Client (schema 不变时会使用缓存)
 RUN bunx prisma generate
@@ -137,14 +138,8 @@ RUN apk add --no-cache openssl vips-dev python3 py3-setuptools make g++ gcc libc
 # 复制 package.json 用于安装依赖 (不变时会使用缓存)
 COPY --from=builder /app/package.json ./package.json
 
-# ARM 架构 sharp
-RUN if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
-    echo "Installing ARM sharp..." && \
-    npm install --platform=linux --arch=arm64 sharp@0.34.1 --no-save --unsafe-perm || \
-    npm install --force @img/sharp-linux-arm64 --no-save; \
-    fi
-
-# 安装运行时依赖 (package.json 不变时会使用缓存)
+# 安装运行时依赖 (统一安装,包括 sharp)
+# sharp 会根据当前架构自动下载正确的预编译二进制
 RUN npm install @node-rs/crc32 lightningcss sharp@0.34.1 prisma@6.19.0 && \
     npm install -g prisma@6.19.0 && \
     npm install sqlite3@5.1.7 && \
