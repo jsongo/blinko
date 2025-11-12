@@ -65,6 +65,11 @@ RUN bunx prisma generate
 # ============================================
 FROM oven/bun:1.2.8 AS builder
 
+# 内存限制参数 (可在构建时覆盖)
+# CI 环境(16GB RAM): 使用 --build-arg BUILD_MEMORY=8192
+# 本地环境(有限内存): 使用默认值 2048
+ARG BUILD_MEMORY=2048
+
 WORKDIR /app
 
 # 从 deps 阶段复制 node_modules 和 Prisma Client (避免重新安装)
@@ -81,17 +86,25 @@ RUN echo "Checking Prisma Client..." && \
 # 构建应用 (分开构建以减少内存压力)
 # 注意：本地构建需要至少 8GB Docker 内存
 # 推荐使用 GitHub Actions 云端构建（见 BUILD_DOCKER_CLOUD.md）
-ENV NODE_OPTIONS="--max-old-space-size=2048"
+
+# 验证 BUILD_MEMORY 参数
+RUN echo "========================================" && \
+    echo "Build Configuration:" && \
+    echo "BUILD_MEMORY = ${BUILD_MEMORY} MB" && \
+    echo "NODE_OPTIONS will be set to: --max-old-space-size=${BUILD_MEMORY}" && \
+    echo "========================================"
 
 # 先构建 backend
-RUN echo "Building backend..." && \
+RUN echo "Building backend with ${BUILD_MEMORY}MB memory limit..." && \
+    export NODE_OPTIONS="--max-old-space-size=${BUILD_MEMORY}" && \
     cd server && bun run build:web && cd ..
 
 # 再构建 frontend
-RUN echo "Building frontend..." && \
+RUN echo "Building frontend with ${BUILD_MEMORY}MB memory limit..." && \
+    echo "Memory limit: ${BUILD_MEMORY}" && \
     cd app && \
     DISABLE_PWA=true \
-    NODE_OPTIONS="--max-old-space-size=2048" \
+    NODE_OPTIONS="--max-old-space-size=${BUILD_MEMORY}" \
     bun run ../node_modules/.bin/vite build && \
     cd ..
 

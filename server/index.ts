@@ -69,10 +69,7 @@ if (process.env.NODE_ENV === 'production') {
   });
 } else {
   ViteExpress.config({
-    viteConfigFile: path.resolve(appRootDev, 'vite.config.ts'),
-    inlineViteConfig: {
-      root: appRootDev,
-    }
+    viteConfigFile: path.resolve(appRootDev, 'vite.config.ts')
   });
 }
 
@@ -234,10 +231,17 @@ async function bootstrap() {
 
     // Start or update server
     if (!server) {
-      server = app.listen(PORT, "0.0.0.0", () => {
-        console.log(`🎉server start on port http://0.0.0.0:${PORT} - env: ${process.env.NODE_ENV || 'development'}`);
-      });
-      ViteExpress.bind(app, server);
+      if (process.env.NODE_ENV === 'production') {
+        server = app.listen(PORT, "0.0.0.0", () => {
+          console.log(`🎉server start on port http://0.0.0.0:${PORT} - env: ${process.env.NODE_ENV || 'development'}`);
+        });
+        ViteExpress.bind(app, server);
+      } else {
+        // In development, use ViteExpress.listen for proper Vite dev server integration
+        ViteExpress.listen(app, PORT, () => {
+          console.log(`🎉server start on port http://0.0.0.0:${PORT} - env: ${process.env.NODE_ENV || 'development'}`);
+        });
+      }
     } else {
       console.log(`API routes updated - env: ${process.env.NODE_ENV || 'development'}`);
     }
@@ -246,10 +250,16 @@ async function bootstrap() {
     try {
       // Attempt to start server even if route setup fails
       if (!server) {
-        server = app.listen(PORT, "0.0.0.0", () => {
-          console.log(`🎉server start on port http://0.0.0.0:${PORT} - env: ${process.env.NODE_ENV || 'development'}`);
-        });
-        ViteExpress.bind(app, server);
+        if (process.env.NODE_ENV === 'production') {
+          server = app.listen(PORT, "0.0.0.0", () => {
+            console.log(`🎉server start on port http://0.0.0.0:${PORT} - env: ${process.env.NODE_ENV || 'development'}`);
+          });
+          ViteExpress.bind(app, server);
+        } else {
+          ViteExpress.listen(app, PORT, () => {
+            console.log(`🎉server start on port http://0.0.0.0:${PORT} - env: ${process.env.NODE_ENV || 'development'}`);
+          });
+        }
       }
     } catch (startupError) {
       console.error('start server error:', startupError);
