@@ -1,16 +1,23 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from 'path';
+import { fileURLToPath } from 'url';
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const host = process.env.TAURI_DEV_HOST || '0.0.0.0';
 const EXPRESS_PORT = 1111;
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Set root to current directory (__dirname) to ensure vite-express can find index.html
+  // when running from parent directory
+  root: __dirname,
   plugins: [
-    react(), 
+    react(),
     tailwindcss(),
     ...(!process.env.DISABLE_PWA ? [
       VitePWA({
