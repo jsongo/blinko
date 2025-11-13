@@ -106,17 +106,13 @@ jobs:
       - name: Install Dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build Frontend with Default Endpoint
-        run: |
-          cd app
-          export VITE_DEFAULT_ENDPOINT="https://note.lyb.pub"
-          bun run build:no-pwa
-
       - name: Build macOS App
         run: |
           cd app
           bun run tauri build --target aarch64-apple-darwin
         env:
+          VITE_DEFAULT_ENDPOINT: "https://note.lyb.pub"
+          DISABLE_PWA: "true"
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
@@ -238,12 +234,6 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0-alpha"
 
-      - name: Build Frontend with Default Endpoint
-        run: |
-          cd app
-          export VITE_DEFAULT_ENDPOINT="https://note.lyb.pub"
-          bun run build:no-pwa
-
       - name: Create Keystore (Debug)
         run: |
           mkdir -p ~/.android
@@ -266,6 +256,8 @@ jobs:
           cd app
           bun run tauri:android:build
         env:
+          VITE_DEFAULT_ENDPOINT: "https://note.lyb.pub"
+          DISABLE_PWA: "true"
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
 
       - name: Rename APK
