@@ -4,17 +4,69 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version (e.g. 1.0.0)'
-        required: true
+        description: "Version (e.g. 1.0.0) or leave empty to auto-increment"
+        required: false
         type: string
+      increment_type:
+        description: "Auto increment type (patch/minor/major)"
+        required: false
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+      commit_version:
+        description: "Commit version to repository"
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   # macOS ARM64 Build
   build-macos-arm64:
     runs-on: macos-latest
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Determine Version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            # Use manually input version
+            VERSION="${{ github.event.inputs.version }}"
+            echo "Using manual version: $VERSION"
+          else
+            # Auto-increment from package.json
+            CURRENT_VERSION=$(jq -r '.version' package.json)
+            echo "Current version: $CURRENT_VERSION"
+            
+            IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+            
+            case "${{ github.event.inputs.increment_type }}" in
+              major)
+                major=$((major + 1))
+                minor=0
+                patch=0
+                ;;
+              minor)
+                minor=$((minor + 1))
+                patch=0
+                ;;
+              patch|*)
+                patch=$((patch + 1))
+                ;;
+            esac
+            
+            VERSION="${major}.${minor}.${patch}"
+            echo "Auto-incremented version: $VERSION"
+          fi
+
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Final version: $VERSION"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -39,19 +91,22 @@ jobs:
 
       - name: Update version in tauri.conf.json
         run: |
-          jq '.version = "${{ github.event.inputs.version }}"' app/src-tauri/tauri.conf.json > tmp.json && mv tmp.json app/src-tauri/tauri.conf.json
-          echo "Updated version to ${{ github.event.inputs.version }}"
+          jq '.version = "${{ steps.version.outputs.VERSION }}"' app/src-tauri/tauri.conf.json > tmp.json && mv tmp.json app/src-tauri/tauri.conf.json
+          echo "Updated version to ${{ steps.version.outputs.VERSION }}"
           cat app/src-tauri/tauri.conf.json
 
       - name: Install Dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build Frontend
+      - name: Build Frontend with Default Endpoint
         run: |
           cd app
+          export VITE_DEFAULT_ENDPOINT="https://note.lyb.pub"
           bun run build:no-pwa
 
-      - name: Build macOS ARM64 App
+      - name:
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
           cd app
           bun run tauri build --target aarch64-apple-darwin
@@ -59,24 +114,46 @@ jobs:
       - name: Upload macOS ARM64 Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: blinko-macos-arm64-${{ github.event.inputs.version }}
+          name: blinko-macos-arm64-${{ steps.version.outputs.VERSION }}
           path: |
             app/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
             app/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz
           retention-days: 7
 
+      - name: Commit Version Update
+        if: ${{ github.event.inputs.commit_version == 'true' && github.event.inputs.version == '' }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Update package.json version
+          jq '.version = "${{ steps.version.outputs.VERSION }}"' package.json > tmp.json && mv tmp.json package.json
+
+          git add package.json app/src-tauri/tauri.conf.json
+          git commit -m "chore: bump version to ${{ steps.version.outputs.VERSION }}"
+          git push origin ${{ github.ref_name }}
+        continue-on-error: true
+
   # Android Build
   build-android:
     runs-on: ubuntu-latest
+    needs: build-macos-arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Use Version from macOS Job
+        id: version
+        run: |
+          VERSION="${{ needs.build-macos-arm64.outputs.version }}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Using version: $VERSION"
+
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '17'
+          distribution: "zulu"
+          java-version: "17"
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -107,8 +184,8 @@ jobs:
 
       - name: Update version in tauri.conf.json
         run: |
-          jq '.version = "${{ github.event.inputs.version }}"' app/src-tauri/tauri.conf.json > tmp.json && mv tmp.json app/src-tauri/tauri.conf.json
-          echo "Updated version to ${{ github.event.inputs.version }}"
+          jq '.version = "${{ steps.version.outputs.VERSION }}"' app/src-tauri/tauri.conf.json > tmp.json && mv tmp.json app/src-tauri/tauri.conf.json
+          echo "Updated version to ${{ steps.version.outputs.VERSION }}"
 
       - name: Install Dependencies
         run: bun install --frozen-lockfile
@@ -118,6 +195,12 @@ jobs:
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0-alpha"
+
+      - name: Build Frontend with Default Endpoint
+        run: |
+          cd app
+          export VITE_DEFAULT_ENDPOINT="https://note.lyb.pub"
+          bun run build:no-pwa
 
       - name: Create Keystore (Debug)
         run: |
@@ -146,11 +229,48 @@ jobs:
       - name: Rename APK
         run: |
           cd app/src-tauri/gen/android/app/build/outputs/apk/universal/release
-          mv app-universal-release.apk Blinko_${{ github.event.inputs.version }}_universal.apk
+          mv app-universal-release.apk Blinko_${{ steps.version.outputs.VERSION }}_universal.apk
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: blinko-android-${{ github.event.inputs.version }}
-          path: app/src-tauri/gen/android/app/build/outputs/apk/universal/release/Blinko_${{ github.event.inputs.version }}_universal.apk
+          name: blinko-android-${{ steps.version.outputs.VERSION }}
+          path: app/src-tauri/gen/android/app/build/outputs/apk/universal/release/Blinko_${{ steps.version.outputs.VERSION }}_universal.apk
           retention-days: 7
+
+  # Create Release
+  create-release:
+    needs: [build-macos-arm64, build-android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download macOS Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: blinko-macos-arm64-${{ needs.build-macos-arm64.outputs.version }}
+          path: ./artifacts/macos
+
+      - name: Download Android Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: blinko-android-${{ needs.build-macos-arm64.outputs.version }}
+          path: ./artifacts/android
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.build-macos-arm64.outputs.version }}
+          name: Release v${{ needs.build-macos-arm64.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            ./artifacts/macos/**/*.dmg
+            ./artifacts/macos/**/*.app.tar.gz
+            ./artifacts/android/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

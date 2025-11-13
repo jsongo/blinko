@@ -1,4 +1,4 @@
-name: App Release
+name: App Release (DISABLED - Use app-simple-release.yml instead)
 
 run-name: >-
   ${{
@@ -8,15 +8,12 @@ run-name: >-
   }}
 
 on:
-  push:
-    tags:
-      - "*" # Match all tags, not limited to v prefix
-  repository_dispatch:
-    types: [trigger-app-release]
+  # Disabled - all triggers commented out
+  # Use .github/workflows/app-simple-release.yml instead
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag Version (e.g. 1.0.0)"
+        description: "Tag Version (e.g. 1.0.0) - DEPRECATED: Use app-simple-release.yml"
         required: true
         type: string
       is-test:
@@ -29,6 +26,11 @@ on:
         required: false
         type: boolean
         default: false
+  # push:
+  #   tags:
+  #     - "*"
+  # repository_dispatch:
+  #   types: [trigger-app-release]
 
 jobs:
   # Set version first

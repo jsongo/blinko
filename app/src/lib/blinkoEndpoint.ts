@@ -1,21 +1,27 @@
+// Default server address (can be configured via environment variable at build time)
+const DEFAULT_ENDPOINT = import.meta.env.VITE_DEFAULT_ENDPOINT || 'https://note.lyb.pub';
 
 export function getBlinkoEndpoint(path: string = ''): string {
     try {
         const blinkoEndpoint = window.localStorage.getItem('blinkoEndpoint')
         const isTauri = !!(window as any).__TAURI__;
-        if (isTauri && blinkoEndpoint) {
+
+        if (isTauri) {
+            // Use user-configured endpoint, or default if not set
+            const endpoint = blinkoEndpoint || DEFAULT_ENDPOINT;
             try {
-                const url = new URL(path, blinkoEndpoint.replace(/"/g, ''));
+                const url = new URL(path, endpoint.replace(/"/g, ''));
+                console.debug('[Tauri] Using endpoint:', url.toString());
                 return url.toString();
             } catch (error) {
-                console.error(error);
-                return new URL(path, window.location.origin).toString();
+                console.error('[Tauri] Invalid endpoint:', endpoint, error);
+                return new URL(path, DEFAULT_ENDPOINT).toString();
             }
         }
 
         return new URL(path, window.location.origin).toString();
     } catch (error) {
-        console.error(error);
+        console.error('[getBlinkoEndpoint] Error:', error);
         return new URL(path, window.location.origin).toString();
     }
 }

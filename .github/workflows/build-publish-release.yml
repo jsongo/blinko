@@ -1,4 +1,4 @@
-name: Build and Push Release Docker Image
+name: Build and Push Release Docker Image (DISABLED)
 
 run-name: >-
   ${{
@@ -8,12 +8,11 @@ run-name: >-
   }}
 
 on:
-  release:
-    types: [published]
+  # Disabled - use manual build or GitHub Container Registry instead
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version (e.g. 1.0.0)'
+        description: 'Version (e.g. 1.0.0) - DEPRECATED'
         required: true
         default: ''
       trigger_app_release:
@@ -24,6 +23,8 @@ on:
         description: 'Set Docker image as latest tag'
         type: boolean
         default: true
+  # release:
+  #   types: [published]
 
 permissions:
   contents: write
