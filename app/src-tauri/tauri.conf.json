@@ -90,7 +90,7 @@
     ]
   },
   "bundle": {
-    "createUpdaterArtifacts": false,
+    "createUpdaterArtifacts": true,
     "active": true,
     "targets": "all",
     "icon": [
@@ -103,7 +103,11 @@
   },
   "plugins": {
     "updater": {
-      "active": false
+      "active": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEYwQjQxMEJBNTZGODEzMkEKUldRcUUvaFd1aEMwOE9FY1JDZmFoeCttTkdEc0I3QWlXVVhlOGJybjAyRG1JSUcwTUgwYU9Qbm8K",
+      "endpoints": [
+        "https://github.com/jsongo/blinko/releases/latest/download/latest.json"
+      ]
     }
   }
 }
