@@ -1,6 +1,9 @@
 name: Simple Build - macOS ARM64 & Android
 
 on:
+  push:
+    tags:
+      - "v*" # 推送 v 开头的 tag 时自动触发（如 v1.6.16）
   workflow_dispatch:
     inputs:
       version:
@@ -35,12 +38,17 @@ jobs:
       - name: Determine Version
         id: version
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            # Use manually input version
+          if [ "${{ github.event_name }}" = "push" ] && [ -n "${{ github.ref_name }}" ]; then
+            # Tag 触发：从 tag 名称提取版本号（移除 v 前缀）
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"  # 移除 v 前缀
+            echo "Using version from tag: $VERSION"
+          elif [ -n "${{ github.event.inputs.version }}" ]; then
+            # 手动输入版本号
             VERSION="${{ github.event.inputs.version }}"
             echo "Using manual version: $VERSION"
           else
-            # Auto-increment from package.json
+            # 自动递增版本号
             CURRENT_VERSION=$(jq -r '.version' package.json)
             echo "Current version: $CURRENT_VERSION"
             
@@ -104,12 +112,25 @@ jobs:
           export VITE_DEFAULT_ENDPOINT="https://note.lyb.pub"
           bun run build:no-pwa
 
-      - name:
+      - name: Build macOS App with Tauri Action
+        uses: tauri-apps/tauri-action@v0
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Tauri updater signing (optional, needed for auto-update signature verification)
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-        run: |
-          cd app
-          bun run tauri build --target aarch64-apple-darwin
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: "app"
+          beforeBuildCommand: ""
+          tauriScript: "bun run tauri"
+          args: "--target aarch64-apple-darwin"
+          tagName: ""
+          releaseName: ""
+          releaseBody: ""
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: true
+          includeRelease: false
 
       - name: Upload macOS ARM64 Artifacts
         uses: actions/upload-artifact@v4
@@ -120,8 +141,15 @@ jobs:
             app/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz
           retention-days: 7
 
+      - name: Upload latest.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: updater-json-macos
+          path: app/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/latest.json
+          retention-days: 7
+
       - name: Commit Version Update
-        if: ${{ github.event.inputs.commit_version == 'true' && github.event.inputs.version == '' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.commit_version == 'true' && github.event.inputs.version == '' }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -260,6 +288,12 @@ jobs:
           name: blinko-android-${{ needs.build-macos-arm64.outputs.version }}
           path: ./artifacts/android
 
+      - name: Download Updater JSON
+        uses: actions/download-artifact@v4
+        with:
+          name: updater-json-macos
+          path: ./artifacts/updater
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -272,5 +306,6 @@ jobs:
             ./artifacts/macos/**/*.dmg
             ./artifacts/macos/**/*.app.tar.gz
             ./artifacts/android/*.apk
+            ./artifacts/updater/latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
