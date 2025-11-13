@@ -8,7 +8,7 @@ networks:
 services:
   blinko-website:
     container_name: blinko-website
-    image: blinkospace/blinko:latest
+    image: jsongo/blinko:latest
     build:
       context: .
       args:
