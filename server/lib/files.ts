@@ -368,7 +368,17 @@ export class FileService {
 
     const prefixPath = pathParts.slice(0, -1).join(',');
 
-    await prisma.attachments.create({
+    // Check if attachment with same path already exists
+    const existingAttachment = await prisma.attachments.findFirst({
+      where: { path, accountId }
+    });
+
+    if (existingAttachment) {
+      console.debug(`Attachment already exists for path: ${path}, skipping creation`);
+      return existingAttachment;
+    }
+
+    return await prisma.attachments.create({
       data: {
         path,
         name,

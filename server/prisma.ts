@@ -16,6 +16,10 @@ export const prisma: PrismaClient =
       db: {
         url: process.env.DATABASE_URL
       }
+    },
+    transactionOptions: {
+      maxWait: 10000, // Wait up to 10s for transaction to start
+      timeout: 30000, // Timeout after 30s of inactivity
     }
   });
 

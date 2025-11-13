@@ -1,0 +1,371 @@
+#!/usr/bin/env node
+
+import fs from "fs";
+import path from "path";
+import JSZip from "jszip";
+import { JSDOM } from "jsdom";
+import htmlToMarkdown from "@wcj/html-to-markdown";
+
+// 配置常量
+const CONFIG = {
+  TAG_PREFIX: "#flomo",
+  BLINKO_VERSION: "0.22.1",
+  IMAGE_TYPE: "image/png",
+  DEFAULT_OUTPUT: "flomo_notes.bko",
+  PATHS: {
+    BACKUP_JSON: "pgdump/bak.json",
+    ATTACHMENTS: "files",
+  },
+};
+
+/**
+ * 日志工具类
+ */
+class Logger {
+  static info(message) {
+    console.log(`[INFO] ${message}`);
+  }
+
+  static error(message) {
+    console.error(`[ERROR] ${message}`);
+  }
+
+  static success(message) {
+    console.log(`[SUCCESS] ${message}`);
+  }
+}
+
+/**
+ * ZIP 文件处理器
+ */
+class ZipHandler {
+  constructor(zipBuffer) {
+    this.zip = new JSZip();
+    this.zipBuffer = zipBuffer;
+  }
+
+  async load() {
+    await this.zip.loadAsync(this.zipBuffer);
+  }
+
+  findHtmlEntry() {
+    const entries = Object.entries(this.zip.files);
+    for (const [filePath, entry] of entries) {
+      if (filePath.endsWith(".html") && !entry.dir) {
+        const rootDirectory = filePath.split("/")[0];
+        return { entry, rootDirectory };
+      }
+    }
+    return null;
+  }
+
+  async readFile(filePath) {
+    const file = this.zip.files[filePath];
+    if (!file || file.dir) return null;
+    return await file.async("arraybuffer");
+  }
+
+  getFileSize(filePath) {
+    const file = this.zip.files[filePath];
+    return file?._data?.uncompressedSize || 0;
+  }
+}
+
+/**
+ * 内容转换器
+ */
+class ContentConverter {
+  static async htmlToMarkdown(htmlContent) {
+    return await htmlToMarkdown({
+      html: htmlContent,
+      keepDataImages: false,
+      ignoreTags: [],
+      removeComments: true,
+    });
+  }
+
+  static normalizeImagePath(imagePath) {
+    const filename = imagePath.split("/").pop();
+    return filename.replace(/\.(jpg|jpeg|gif|webp)$/i, ".png");
+  }
+}
+
+/**
+ * 笔记构建器
+ */
+class NoteBuilder {
+  constructor(username) {
+    this.username = username;
+    this.noteIdCounter = 1;
+    this.attachmentIdCounter = 1;
+  }
+
+  createAccountInfo() {
+    return {
+      id: 1,
+      name: this.username,
+      nickname: this.username,
+      password: "",
+      image: "",
+      apiToken: "",
+      note: 0,
+      role: "user",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  buildNote(content, timestamp) {
+    const dateISO = new Date(timestamp).toISOString();
+    return {
+      id: this.noteIdCounter++,
+      account: this.createAccountInfo(),
+      content: `${CONFIG.TAG_PREFIX} ${content}`,
+      isArchived: false,
+      isShare: false,
+      isTop: false,
+      createdAt: dateISO,
+      updatedAt: dateISO,
+      type: 0,
+      attachments: [],
+      references: [],
+      referencedBy: [],
+    };
+  }
+
+  createAttachment(filename, noteId, timestamp, fileSize) {
+    const dateISO = new Date(timestamp).toISOString();
+    return {
+      id: this.attachmentIdCounter++,
+      isShare: false,
+      sharePassword: "",
+      name: filename,
+      path: `/api/file/${filename}`,
+      size: String(fileSize),
+      type: CONFIG.IMAGE_TYPE,
+      noteId: noteId,
+      createdAt: dateISO,
+      updatedAt: dateISO,
+    };
+  }
+}
+
+/**
+ * Flomo 文档解析器
+ */
+class FlomoParser {
+  constructor(htmlContent) {
+    const dom = new JSDOM(htmlContent);
+    this.document = dom.window.document;
+  }
+
+  extractMemos() {
+    return Array.from(this.document.querySelectorAll(".memo"));
+  }
+
+  parseMemo(memoElement) {
+    const timeText = memoElement.querySelector(".time")?.textContent || "";
+    const contentElement = memoElement.querySelector(".content");
+    const filesElement = memoElement.querySelector(".files");
+
+    const htmlContent = contentElement?.innerHTML || "";
+    const imageElements = filesElement
+      ? Array.from(filesElement.querySelectorAll("img"))
+      : [];
+
+    return {
+      timestamp: timeText,
+      htmlContent,
+      imageElements,
+    };
+  }
+}
+
+/**
+ * 主转换器类
+ */
+class FlomoToBlinkoConverter {
+  constructor(flomoZipPath, username, outputPath) {
+    this.flomoZipPath = flomoZipPath;
+    this.username = username;
+    this.outputPath = outputPath;
+    this.noteBuilder = new NoteBuilder(username);
+  }
+
+  async convert() {
+    try {
+      Logger.info("开始转换流程...");
+
+      const outputZip = new JSZip();
+      const inputZipBuffer = fs.readFileSync(this.flomoZipPath);
+      const zipHandler = new ZipHandler(inputZipBuffer);
+
+      await zipHandler.load();
+
+      const htmlInfo = zipHandler.findHtmlEntry();
+      if (!htmlInfo) {
+        throw new Error("在 ZIP 文件中未找到 HTML 文档");
+      }
+
+      Logger.info(`发现根目录: ${htmlInfo.rootDirectory}`);
+
+      const htmlContent = await htmlInfo.entry.async("text");
+      const parser = new FlomoParser(htmlContent);
+      const memoElements = parser.extractMemos();
+
+      Logger.info(`检测到 ${memoElements.length} 条笔记`);
+
+      const notes = [];
+
+      for (const memoElement of memoElements) {
+        const memo = parser.parseMemo(memoElement);
+        const markdownContent = await ContentConverter.htmlToMarkdown(
+          memo.htmlContent
+        );
+        const note = this.noteBuilder.buildNote(
+          markdownContent,
+          memo.timestamp
+        );
+
+        // 处理图片附件
+        await this.processImages(
+          memo.imageElements,
+          zipHandler,
+          htmlInfo.rootDirectory,
+          note,
+          memo.timestamp,
+          outputZip
+        );
+
+        notes.push(note);
+      }
+
+      Logger.success(`成功处理 ${notes.length} 条笔记`);
+
+      const exportPackage = this.createExportPackage(notes);
+      outputZip.file(
+        CONFIG.PATHS.BACKUP_JSON,
+        JSON.stringify(exportPackage, null, 2)
+      );
+
+      const outputBuffer = await outputZip.generateAsync({
+        type: "nodebuffer",
+      });
+      fs.writeFileSync(this.outputPath, outputBuffer);
+
+      Logger.success(`转换完成！输出文件: ${this.outputPath}`);
+      Logger.info(`共转换 ${notes.length} 条笔记`);
+    } catch (error) {
+      Logger.error(`转换失败: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async processImages(
+    imageElements,
+    zipHandler,
+    rootDir,
+    note,
+    timestamp,
+    outputZip
+  ) {
+    for (const imgElement of imageElements) {
+      try {
+        const srcAttr = imgElement.getAttribute("src");
+        if (!srcAttr) continue;
+
+        const imagePath = decodeURIComponent(srcAttr);
+        const fullPath = `${rootDir}/${imagePath}`;
+
+        const imageData = await zipHandler.readFile(fullPath);
+        if (!imageData) continue;
+
+        const normalizedFilename =
+          ContentConverter.normalizeImagePath(imagePath);
+        const fileSize = zipHandler.getFileSize(fullPath);
+
+        const attachment = this.noteBuilder.createAttachment(
+          normalizedFilename,
+          note.id,
+          timestamp,
+          fileSize
+        );
+
+        note.attachments.push(attachment);
+        outputZip.file(
+          `${CONFIG.PATHS.ATTACHMENTS}/${normalizedFilename}`,
+          imageData
+        );
+      } catch (error) {
+        Logger.error(`图片处理失败: ${error.message}`);
+      }
+    }
+  }
+
+  createExportPackage(notes) {
+    return {
+      notes: notes,
+      exportTime: new Date().toISOString(),
+      version: CONFIG.BLINKO_VERSION,
+    };
+  }
+}
+
+/**
+ * 命令行接口
+ */
+class CLI {
+  static parseArguments() {
+    const args = process.argv.slice(2);
+
+    if (args.length < 2) {
+      this.showUsage();
+      process.exit(1);
+    }
+
+    return {
+      flomoZipPath: path.resolve(args[0]),
+      username: args[1],
+      outputPath: args[2]
+        ? path.resolve(args[2])
+        : path.resolve(CONFIG.DEFAULT_OUTPUT),
+    };
+  }
+
+  static showUsage() {
+    console.log("使用说明:");
+    console.log(
+      "  node convert.js <Flomo-ZIP-文件> <Blinko-用户名> [输出路径]"
+    );
+    console.log("");
+    console.log("示例:");
+    console.log("  node convert.js ./flomo_export.zip username");
+    console.log("  node convert.js ./flomo_export.zip username ./output.bko");
+  }
+
+  static validateInputFile(filePath) {
+    if (!fs.existsSync(filePath)) {
+      Logger.error(`文件不存在: ${filePath}`);
+      process.exit(1);
+    }
+  }
+
+  static async run() {
+    const config = this.parseArguments();
+    this.validateInputFile(config.flomoZipPath);
+
+    const converter = new FlomoToBlinkoConverter(
+      config.flomoZipPath,
+      config.username,
+      config.outputPath
+    );
+
+    await converter.convert();
+  }
+}
+
+// 执行主程序
+CLI.run().catch((error) => {
+  Logger.error(`程序异常退出: ${error.message}`);
+  process.exit(1);
+});

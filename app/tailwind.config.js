@@ -3,8 +3,8 @@ const { heroui } = require('@heroui/react');
 module.exports = {
   content: [
     './src/**/*.{js,ts,jsx,tsx,mdx}',
-    // Only scan specific theme files to avoid scanning entire node_modules
-    './node_modules/@heroui/theme/dist/components/**/*.js',
+    '../node_modules/@tremor/**/*.{js,ts,jsx,tsx}',
+    '../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}',
   ],
   darkMode: 'class',
   theme: {

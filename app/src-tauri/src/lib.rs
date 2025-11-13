@@ -2,11 +2,10 @@
 mod desktop;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use desktop::*;
-use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let mut builder = tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_upload::init())
         .plugin(tauri_plugin_http::init())
@@ -17,8 +16,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init());
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    {
-        builder = builder
+    let builder = {
+        use tauri::Manager;
+        builder
             .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
                 // Called when a second instance tries to start
                 println!("Second instance detected with args: {:?} and cwd: {:?}", args, cwd);
@@ -48,8 +48,8 @@ pub fn run() {
                 tauri_plugin_global_shortcut::Builder::new()
                     .with_handler(create_global_shortcut_handler())
                     .build()
-            );
-    }
+            )
+    };
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
