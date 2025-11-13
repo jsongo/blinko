@@ -112,25 +112,13 @@ jobs:
           export VITE_DEFAULT_ENDPOINT="https://note.lyb.pub"
           bun run build:no-pwa
 
-      - name: Build macOS App with Tauri Action
-        uses: tauri-apps/tauri-action@v0
+      - name: Build macOS App
+        run: |
+          cd app
+          bun run tauri build --target aarch64-apple-darwin
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Tauri updater signing (optional, needed for auto-update signature verification)
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          projectPath: "app"
-          beforeBuildCommand: ""
-          tauriScript: "bun run tauri"
-          args: "--target aarch64-apple-darwin"
-          tagName: ""
-          releaseName: ""
-          releaseBody: ""
-          releaseDraft: true
-          prerelease: false
-          includeUpdaterJson: true
-          includeRelease: false
 
       - name: Upload macOS ARM64 Artifacts
         uses: actions/upload-artifact@v4
@@ -140,6 +128,29 @@ jobs:
             app/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
             app/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz
           retention-days: 7
+
+      - name: Generate latest.json for Tauri Updater
+        run: |
+          cd app/src-tauri
+          VERSION="${{ steps.version.outputs.VERSION }}"
+
+          # 生成 latest.json
+          cat > target/aarch64-apple-darwin/release/bundle/macos/latest.json << EOF
+          {
+            "version": "$VERSION",
+            "notes": "Release $VERSION",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "darwin-aarch64": {
+                "signature": "",
+                "url": "https://github.com/jsongo/blinko/releases/download/v$VERSION/blinko_${VERSION}_aarch64.app.tar.gz"
+              }
+            }
+          }
+          EOF
+
+          echo "Generated latest.json:"
+          cat target/aarch64-apple-darwin/release/bundle/macos/latest.json
 
       - name: Upload latest.json
         uses: actions/upload-artifact@v4
