@@ -101,12 +101,5 @@
       "icons/icon.ico"
     ]
   },
-  "plugins": {
-    "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU3QkJBRkE5ODQ0NDM1QjcKUldTM05VU0VxYSs3VjBzeForRFRTR2hBRUh1dnZnQlozK3FpbCtoYVBndXB6OVhQdEg2WWtvNnMK",
-      "endpoints": [
-        "https://github.com/jsongo/blinko/releases/latest/download/latest.json"
-      ]
-    }
-  }
+  "plugins": {}
 }
