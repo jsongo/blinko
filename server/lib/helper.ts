@@ -266,10 +266,12 @@ export const getAllPathTags = async () => {
 
 
 export const resetSequences = async () => {
-  await prisma.$executeRaw`SELECT setval('notes_id_seq', (SELECT MAX(id) FROM "notes") + 1);`;
-  await prisma.$executeRaw`SELECT setval('tag_id_seq', (SELECT MAX(id) FROM "tag") + 1);`;
-  await prisma.$executeRaw`SELECT setval('"tagsToNote_id_seq"', (SELECT MAX(id) FROM "tagsToNote") + 1);`;
-  await prisma.$executeRaw`SELECT setval('attachments_id_seq', (SELECT MAX(id) FROM "attachments") + 1);`;
+  // Use COALESCE to handle empty tables (MAX returns NULL for empty tables)
+  await prisma.$executeRaw`SELECT setval('notes_id_seq', COALESCE((SELECT MAX(id) FROM "notes"), 0) + 1);`;
+  await prisma.$executeRaw`SELECT setval('tag_id_seq', COALESCE((SELECT MAX(id) FROM "tag"), 0) + 1);`;
+  await prisma.$executeRaw`SELECT setval('"tagsToNote_id_seq"', COALESCE((SELECT MAX(id) FROM "tagsToNote"), 0) + 1);`;
+  await prisma.$executeRaw`SELECT setval('attachments_id_seq', COALESCE((SELECT MAX(id) FROM "attachments"), 0) + 1);`;
+  console.debug('Database sequences reset successfully');
 }
 
 export const getUserFromSession = (req: any) => {

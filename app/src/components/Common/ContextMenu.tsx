@@ -59,7 +59,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ id, className, childre
   }, []);
 
   const menuClassName = `contexify ${isDark ? 'dark-menu' : ''} ${className || ''}`.trim();
-  
+
   return (
     <Menu id={id} className={menuClassName}>
       {children}

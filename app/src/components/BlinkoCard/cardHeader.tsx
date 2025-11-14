@@ -115,8 +115,8 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isExpande
           </Tooltip>
         )}
 
-        <Tooltip content={t('edit-time')} delay={1000}>
-          <div 
+        <Tooltip content={t('created-at')} delay={1000}>
+          <div
             className={`${isExpanded ? 'text-sm' : 'text-xs'} text-desc cursor-pointer transition-colors`}
             onClick={(e) => {
               e.stopPropagation();
@@ -125,8 +125,8 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isExpande
             }}
           >
             {blinko.config.value?.timeFormat == 'relative'
-              ? dayjs(blinko.config.value?.isOrderByCreateTime ? blinkoItem.createdAt : blinkoItem.updatedAt).fromNow()
-              : dayjs(blinko.config.value?.isOrderByCreateTime ? blinkoItem.createdAt : blinkoItem.updatedAt).format(blinko.config.value?.timeFormat ?? 'YYYY-MM-DD HH:mm:ss')
+              ? dayjs(blinkoItem.createdAt).fromNow()
+              : dayjs(blinkoItem.createdAt).format(blinko.config.value?.timeFormat ?? 'YYYY-MM-DD HH:mm:ss')
             }
           </div>
         </Tooltip>

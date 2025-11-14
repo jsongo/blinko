@@ -21,6 +21,7 @@ export const CardFooter = ({ blinkoItem, blinko, isShareMode }: CardFooterProps)
   return (
     <div className="flex items-center">
       <ConvertTypeButton blinkoItem={blinkoItem} />
+      <UpdatedTime blinkoItem={blinkoItem} />
       <RightContent blinkoItem={blinkoItem} t={t} />
     </div>
   );
@@ -166,6 +167,31 @@ export const ConvertTypeButton = ({
           {blinkoItem.isArchived ? ` · ${t('archived')}` : ''}
           {blinkoItem.isOffline ? ` · ${t('offline')}` : ''}
         </div>
+      </div>
+    </Tooltip>
+  );
+};
+
+const UpdatedTime = ({ blinkoItem }: { blinkoItem: Note }) => {
+  const { t } = useTranslation();
+  const blinko = RootStore.Get(BlinkoStore);
+
+  // Only show updated time if it's different from created time
+  const createdTime = dayjs(blinkoItem.createdAt);
+  const updatedTime = dayjs(blinkoItem.updatedAt);
+  const isDifferent = updatedTime.diff(createdTime, 'second') > 1;
+
+  if (!isDifferent) {
+    return null;
+  }
+
+  return (
+    <Tooltip content={t('updated-at')} delay={1000}>
+      <div className="text-desc text-xs font-bold ml-8 select-none">
+        更新时间：{blinko.config.value?.timeFormat == 'relative'
+          ? `${t('updated')} ${updatedTime.fromNow()}`
+          : updatedTime.format(blinko.config.value?.timeFormat ?? 'YYYY-MM-DD HH:mm:ss')
+        }
       </div>
     </Tooltip>
   );

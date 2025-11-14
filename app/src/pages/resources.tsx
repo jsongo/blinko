@@ -78,7 +78,7 @@ const Page = observer(() => {
         <ScrollArea
           fixMobileTopBar
           onBottom={resourceStore.loadNextPage}
-          className="md:px-6 h-[calc(100%_-_5px)] md:h-[calc(100vh_-_100px)] px-2 md:max-w-[1000px] w-full overflow-x-hidden mx-auto"
+          className="md:px-6 h-[calc(100%_-_5px)] md:h-[calc(100vh_-_100px)] px-2 md:max-w-[1400px] w-full overflow-x-hidden mx-auto"
         >
           <div className="flex items-center justify-between ">
             <div className="flex items-center gap-2">
@@ -202,27 +202,38 @@ const Page = observer(() => {
             </div>
           </div>
 
-          <LoadingAndEmpty
-            isLoading={resourceStore.blinko.resourceList.isLoading}
-            isEmpty={!resources.length}
-            emptyMessage={t('no-resources-found')}
-          />
+          {/* Initial loading or empty state */}
+          {resources.length === 0 && (
+            <LoadingAndEmpty
+              isLoading={resourceStore.blinko.resourceList.isLoading}
+              isEmpty={!resources.length && !resourceStore.blinko.resourceList.isLoading}
+              emptyMessage={t('no-resources-found')}
+            />
+          )}
+
           <PhotoProvider>
             {resources.length > 0 && (
-              <div className="py-2 min-h-[200px]">
-                {resources.map((item, index) => (
-                  <MemoizedResourceItem
-                    key={item.isFolder ? `folder-${item.folderName}` : `file-${item.id}`}
-                    item={item}
-                    index={index}
-                    isSelected={selectedItems.has(item.id!)}
-                    onSelect={resourceStore.toggleSelect}
-                    onFolderClick={(folder) => resourceStore.navigateToFolder(folder, navigate)}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="py-2 min-h-[200px] grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2">
+                  {resources.map((item, index) => (
+                    <MemoizedResourceItem
+                      key={item.isFolder ? `folder-${item.folderName}` : `file-${item.id}`}
+                      item={item}
+                      index={index}
+                      isSelected={selectedItems.has(item.id!)}
+                      onSelect={resourceStore.toggleSelect}
+                      onFolderClick={(folder) => resourceStore.navigateToFolder(folder, navigate)}
+                    />
+                  ))}
+                </div>
+                {/* Loading more indicator at bottom */}
+                {resourceStore.blinko.resourceList.isLoading && (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                )}
+              </>
             )}
-
           </PhotoProvider>
 
         </ScrollArea>

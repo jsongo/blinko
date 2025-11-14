@@ -9,9 +9,10 @@ interface HeatMapProps {
   data: Array<[string, number]>
   title?: string
   description?: string
+  onDateClick?: (date: string) => void
 }
 
-export const HeatMap = ({ data, title, description }: HeatMapProps) => {
+export const HeatMap = ({ data, title, description, onDateClick }: HeatMapProps) => {
   const chartRef = useRef<HTMLDivElement>(null)
   const isPc = useMediaQuery('(min-width: 768px)')
   const { theme } = useTheme()
@@ -20,6 +21,15 @@ export const HeatMap = ({ data, title, description }: HeatMapProps) => {
     if (!chartRef.current) return
 
     const chart = echarts.init(chartRef.current)
+
+    // Add click event handler
+    if (onDateClick) {
+      chart.on('click', (params: any) => {
+        if (params.componentType === 'series' && params.value) {
+          onDateClick(params.value[0])
+        }
+      })
+    }
 
     const handleResize = () => {
       if (!chartRef.current) return
@@ -142,7 +152,7 @@ export const HeatMap = ({ data, title, description }: HeatMapProps) => {
       window.removeEventListener('resize', handleResize)
       chart.dispose()
     }
-  }, [data, isPc])
+  }, [data, isPc, onDateClick, theme, t])
 
   return (
     <div className="rounded-xl bg-card p-6 shadow-sm">

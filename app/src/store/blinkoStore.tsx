@@ -238,7 +238,10 @@ export class BlinkoStore implements Store {
       });
       eventBus.emit('editor:clear')
       showToast && RootStore.Get(ToastPlugin).success(id ? i18n.t("update-successfully") : i18n.t("create-successfully"))
-      refresh && this.updateTicker++
+      if (refresh) {
+        console.debug('[BlinkoStore] Incrementing updateTicker:', this.updateTicker, '→', this.updateTicker + 1);
+        this.updateTicker++
+      }
       return res
     }
   })

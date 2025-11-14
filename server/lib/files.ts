@@ -378,19 +378,41 @@ export class FileService {
       return existingAttachment;
     }
 
-    return await prisma.attachments.create({
-      data: {
-        path,
-        name,
-        size,
-        type,
-        depth: pathParts.length - 1,
-        perfixPath: prefixPath.startsWith(',') ? prefixPath.substring(1) : prefixPath,
-        ...(noteId ? { noteId } : {}),
-        accountId,
-        ...(metadata ? { metadata } : {})
+    // Ensure metadata doesn't contain 'id' field that could cause conflicts
+    const sanitizedMetadata = metadata ? (() => {
+      const { id, ...rest } = metadata as any;
+      return Object.keys(rest).length > 0 ? rest : undefined;
+    })() : undefined;
+
+    try {
+      return await prisma.attachments.create({
+        data: {
+          path,
+          name,
+          size,
+          type,
+          depth: pathParts.length - 1,
+          perfixPath: prefixPath.startsWith(',') ? prefixPath.substring(1) : prefixPath,
+          ...(noteId ? { noteId } : {}),
+          accountId,
+          ...(sanitizedMetadata ? { metadata: sanitizedMetadata } : {})
+        }
+      })
+    } catch (error) {
+      // If creation fails due to unique constraint, try to find and return the existing record
+      if (error.code === 'P2002') {
+        console.debug(`Unique constraint failed for attachment, attempting to find existing record for path: ${path}`);
+        const existingByPath = await prisma.attachments.findFirst({
+          where: { path, accountId }
+        });
+        if (existingByPath) {
+          return existingByPath;
+        }
+        // If not found by path, the conflict might be on the ID itself due to sequence issues
+        console.error(`Unique constraint failed but no existing attachment found for path: ${path}`);
       }
-    })
+      throw error;
+    }
   }
 
   static async renameFile(oldPath: string, newName: string) {

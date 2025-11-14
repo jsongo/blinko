@@ -40,6 +40,34 @@ Blinko is an AI-powered card note-taking project. Designed for individuals who w
 
 </div>
 
+## 📝About This Fork
+
+This is a fork of [blinko-space/blinko](https://github.com/blinko-space/blinko) with various improvements and optimizations:
+
+### Major Improvements
+- **refactor**: Upgraded to React 19 for better performance and new features
+- **refactor**: Unified drag-and-drop libraries by removing the unmaintained `react-beautiful-dnd-next` (7 years without updates, no React 19 support) and migrating everything to `@dnd-kit`
+- **refactor**: Optimized Dockerfile with better layer caching, significantly reducing build time from the second build onwards
+- **refactor**: Replaced `rctx-contextmenu` (no React 19 support) with `react-contexify`
+- **refactor**: Separated frontend and backend development servers for better developer experience
+- **chore**: Upgraded Prisma to the latest version (6.19.0)
+
+### Bug Fixes & Features
+- **feat**: Restore previous conversation content when re-entering AI chat page
+- **feat**: Enhanced analytics with day-level statistics (click on heatmap to view specific date stats)
+- **feat**: Responsive multi-column layout for resources page (1-3 columns based on screen width)
+- **fix**: Fixed improper HTML tag nesting issues (div, span, img, a elements)
+- **fix**: Corrected tag tree node counts to accurately show the number of notes per tag
+- **fix**: Fixed multiple counting issues that incorrectly included recycled notes in statistics
+- **fix**: Resolved list doubling issue after delete operations in main list
+- **fix**: Fixed import functionality for `.bko` backup files
+- **fix**: Various other minor bug fixes
+
+### Development Environment Improvements
+- Fixed development environment setup issues with Vite + Express integration
+- Improved hot reload experience in development mode
+- Better error handling and debugging information
+
 ## 🚀Main Features
 - 🤖**AI-Enhanced Note Retrieval** ：With Blinko's advanced AI-powered RAG (Retrieval-Augmented Generation), you can quickly search and access your notes using natural language queries, making it effortless to find exactly what you need.
 

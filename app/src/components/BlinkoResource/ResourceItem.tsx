@@ -51,38 +51,40 @@ export const ResourceItemPreview = ({
   }, [item.name]);
 
   return (
-    <div className={`w-full flex items-center gap-2 p-2 rounded-md cursor-pointer group ${className}`} onClick={onClick}>
+    <div className={`flex items-center gap-2 rounded-md cursor-pointer group min-w-0 ${className}`} onClick={onClick}>
       {isImage ? (
         <PhotoProvider>
           <PhotoView src={getBlinkoEndpoint(`${item.path}?token=${RootStore.Get(UserStore).tokenData.value?.token}`)}>
-            <div>
+            <div className="flex-shrink-0">
               <ImageThumbnailRender src={item.path} className="!w-[28px] !h-[28px] object-cover rounded" />
             </div>
           </PhotoView>
         </PhotoProvider>
       ) : (
-        <div className="w-[28px] h-[28px] flex items-center justify-center">
+        <div className="w-[28px] h-[28px] flex items-center justify-center flex-shrink-0">
           <FileIcons path={item.path} size={28} />
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-sm flex items-center gap-2">
-          <span className="max-w-[100px] truncate md:max-w-[250px]">{fileNameAndExt.name}</span>
-          {isS3File && showExtraInfo && (
-            <Tooltip content={t('cloud-file')}>
-              <Icon icon="fluent-color:cloud-16" className="w-4 h-4" />
-            </Tooltip>
-          )}
-          {showAssociationIcon && !item.noteId && showExtraInfo && (
-            <Tooltip content={t('no-note-associated')}>
-              <Icon icon="ic:twotone-no-backpack" className="w-4 h-4 text-yellow-500" />
-            </Tooltip>
-          )}
+        <div className="font-medium text-sm flex items-start gap-1.5">
+          <span className="flex-1 line-clamp-2 break-words">{fileNameAndExt.name}</span>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {isS3File && showExtraInfo && (
+              <Tooltip content={t('cloud-file')}>
+                <Icon icon="fluent-color:cloud-16" className="w-4 h-4" />
+              </Tooltip>
+            )}
+            {showAssociationIcon && !item.noteId && showExtraInfo && (
+              <Tooltip content={t('no-note-associated')}>
+                <Icon icon="ic:twotone-no-backpack" className="w-4 h-4 text-yellow-500" />
+              </Tooltip>
+            )}
+          </div>
         </div>
         {showExtraInfo && (
-          <div className="text-xs text-gray-500 flex items-center gap-2 my-1">
-            <span className="rounded-md px-1.5 py-0.5 bg-default-100 text-default-600">{fileNameAndExt.ext}</span>
-            {filesize(Number(item.size))} · {dayjs(item.createdAt).format('YYYY-MM-DD HH:mm')}
+          <div className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5 min-w-0">
+            <span className="rounded-md px-1.5 py-0.5 bg-default-100 text-default-600 flex-shrink-0">{fileNameAndExt.ext}</span>
+            <span className="truncate">{filesize(Number(item.size))} · {dayjs(item.createdAt).format('YYYY-MM-DD HH:mm')}</span>
           </div>
         )}
         {!showExtraInfo && <div className="text-xs text-gray-500">{dayjs(item.createdAt).format('YYYY-MM-DD HH:mm')}</div>}
@@ -110,7 +112,7 @@ interface ResourceCardProps {
 }
 
 const getCardClassName = (isDragging?: boolean, isDraggingOver?: boolean) => {
-  const baseClasses = 'mb-2 p-4 hover:bg-hover bg-background !transition-all duration-200';
+  const baseClasses = 'p-2.5 hover:bg-hover bg-background !transition-all duration-200 h-full';
 
   if (isDraggingOver) {
     return `${baseClasses} relative overflow-visible ring-2 ring-primary/30 bg-primary/10`;
@@ -176,9 +178,11 @@ const ResourceCard = observer(({ item, isSelected, onSelect, isDragging, isDragg
 
   return (
     <Card {...cardProps} shadow="none">
-      <div className="flex items-center gap-4" {...dragHandleProps}>
-        <Checkbox isSelected={isSelected} onChange={() => onSelect(item.id!)} className="z-10" />
-        <ResourceItemPreview item={item} />
+      <div className="flex items-center gap-2 min-w-0" {...dragHandleProps}>
+        <Checkbox isSelected={isSelected} onChange={() => onSelect(item.id!)} className="z-10 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <ResourceItemPreview item={item} />
+        </div>
         <ResourceContextMenu onTrigger={handleContextMenu} />
       </div>
     </Card>

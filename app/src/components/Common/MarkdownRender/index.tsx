@@ -30,11 +30,16 @@ const HighlightTags = observer(({ text, }: { text: any }) => {
     const decodedText = text.replace(/&nbsp;/g, ' ');
     const lines = decodedText?.split("\n");
     return lines.map((line, lineIndex) => {
-      const parts = line.split(/\s+/);
+      const parts = line.split(/(\s+)/); // Capture whitespace in the split
       const processedParts = parts.map((part, index) => {
+        // Skip whitespace parts - render them as-is
+        if (/^\s+$/.test(part)) {
+          return part;
+        }
+
         if (part.startsWith('#') && part.length > 1 && part.match(helper.regex.isContainHashTag)) {
           const isShareMode = location.pathname.includes('share')
-          if (isShareMode) return <span key={`${lineIndex}-${index}`} className={`w-fit select-none blinko-tag px-1 font-bold cursor-pointer hover:opacity-80 !transition-all`}>{part + " "}</span>
+          if (isShareMode) return <span key={`${lineIndex}-${index}`} className={`w-fit select-none blinko-tag px-1 font-bold cursor-pointer hover:opacity-80 !transition-all`}>{part}</span>
           return (
             <span key={`${lineIndex}-${index}`}
               className={`select-none blinko-tag px-1 font-bold cursor-pointer hover:opacity-80 !transition-all ${isShareMode ? 'pointer-events-none' : ''}`}
@@ -43,11 +48,11 @@ const HighlightTags = observer(({ text, }: { text: any }) => {
                 navigate(`/?path=all&searchText=${encodeURIComponent(part)}`);
                 RootStore.Get(BlinkoStore).forceQuery++
               }}>
-              {part + " "}
+              {part}
             </span>
           );
         } else {
-          return part + " ";
+          return part;
         }
       });
       return [...processedParts, <br key={`br-${lineIndex}`} />];
@@ -88,7 +93,19 @@ export const MarkdownRender = observer(({ content = '', onChange, isShareMode, l
             }]
           ]}
           components={{
-            p: ({ node, children }) => <p><HighlightTags text={children} /></p>,
+            p: ({ node, children }) => {
+              // Check if children contains block-level elements
+              const hasBlockElements = React.Children.toArray(children).some(
+                child => React.isValidElement(child) && typeof child.type !== 'string'
+              );
+
+              // If children contains React components that might render block elements, use div
+              if (hasBlockElements) {
+                return <div><HighlightTags text={children} /></div>;
+              }
+
+              return <p><HighlightTags text={children} /></p>;
+            },
             code: ({ node, className, children, ...props }) => {
               const match = /language-(\w+)/.exec(className || '');
               const language = match ? match[1] : '';

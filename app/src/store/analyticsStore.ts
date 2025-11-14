@@ -25,7 +25,13 @@ export class AnalyticsStore implements Store {
   }
 
   setSelectedMonth(month: string) {
+    console.debug('[AnalyticsStore] setSelectedMonth called with:', month)
+    if (!month) {
+      console.debug('[AnalyticsStore] month is undefined or empty, skipping')
+      return
+    }
     this.selectedMonth = month;
+    console.debug('[AnalyticsStore] selectedMonth updated to:', this.selectedMonth)
     this.dailyNoteCount.call();
     this.monthlyStats.call();
   }
@@ -39,6 +45,7 @@ export class AnalyticsStore implements Store {
 
   monthlyStats = new PromiseState({
     function: async () => {
+      console.debug('[AnalyticsStore] monthlyStats.function called - this.selectedMonth:', this.selectedMonth)
       const data = await api.analytics.monthlyStats.mutate({
         month: this.selectedMonth
       }) as MonthlyStats

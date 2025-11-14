@@ -37,10 +37,16 @@ export const useDragCard = ({ notes, onNotesUpdate, activeId, setActiveId, inser
         notes.length !== prevNotesRef.current.length ||
         notes.some((note, index) => {
           const prevNote = prevNotesRef.current![index];
-          return !prevNote || note.id !== prevNote.id || note.sortOrder !== prevNote.sortOrder;
+          // Check id, sortOrder, content, updatedAt to detect any changes
+          return !prevNote ||
+            note.id !== prevNote.id ||
+            note.sortOrder !== prevNote.sortOrder ||
+            note.content !== prevNote.content ||
+            note.updatedAt?.getTime() !== prevNote.updatedAt?.getTime();
         });
 
       if (hasNotesChanged) {
+        console.debug('[useDragCard] Notes changed, updating local notes');
         const sortedNotes = [...notes].sort((a, b) => (a?.sortOrder || 0) - (b?.sortOrder || 0));
         setLocalNotes(sortedNotes);
         // Only call onNotesUpdate if it's provided

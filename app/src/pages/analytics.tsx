@@ -18,13 +18,22 @@ const Analytics = observer(() => {
   analyticsStore.use()
 
   useEffect(() => {
-    analyticsStore.setSelectedMonth(selectedMonth)
+    console.debug('[Analytics] useEffect triggered - selectedMonth:', selectedMonth)
+    if (selectedMonth) {
+      analyticsStore.setSelectedMonth(selectedMonth)
+    } else {
+      console.debug('[Analytics] selectedMonth is undefined, skipping API call')
+    }
   }, [selectedMonth])
 
   const currentMonth = dayjs().format("YYYY-MM")
-  const last12Months = Array.from({ length: 12 }, (_, i) => {
-    return dayjs().subtract(i, "month").format("YYYY-MM")
-  })
+  const monthOptions = [
+    { key: "all", label: t('all') || "All" },
+    ...Array.from({ length: 12 }, (_, i) => {
+      const month = dayjs().subtract(i, "month").format("YYYY-MM")
+      return { key: month, label: month }
+    })
+  ]
 
   const data = analyticsStore.dailyNoteCount.value?.map(item => [
     item.date,
@@ -32,6 +41,20 @@ const Analytics = observer(() => {
   ] as [string, number]) ?? []
 
   const stats = analyticsStore.monthlyStats.value
+
+  const handleDateClick = (date: string) => {
+    if (!date) {
+      console.debug('[Analytics] handleDateClick - date is undefined or empty, ignoring')
+      return
+    }
+    // Use the exact date (YYYY-MM-DD) for day-level statistics
+    console.debug('[Analytics] handleDateClick - clicked date:', date)
+    if (dayjs(date).isValid()) {
+      setSelectedMonth(date)
+    } else {
+      console.debug('[Analytics] handleDateClick - date is invalid:', date)
+    }
+  }
 
   return (
     <ScrollArea onBottom={() => { }} fixMobileTopBar className="px-6 space-y-2 md:p-6 md:space-y-6  mx-auto max-w-7xl" >
@@ -45,7 +68,7 @@ const Analytics = observer(() => {
               endContent={<Icon icon="mdi:chevron-down" className="h-4 w-4" />}
               startContent={<Icon icon="mdi:calendar" className="h-4 w-4" />}
             >
-              {selectedMonth}
+              {selectedMonth === "all" ? (t('all') || "All") : selectedMonth}
             </Button>
           </DropdownTrigger>
           <DropdownMenu
@@ -55,15 +78,20 @@ const Analytics = observer(() => {
             className="max-h-[400px]"
             onSelectionChange={(key) => {
               const value = Array.from(key)[0] as string
-              setSelectedMonth(value)
+              console.debug('[Analytics] Dropdown onSelectionChange - key:', key, 'value:', value)
+              if (value) {
+                setSelectedMonth(value)
+              } else {
+                console.debug('[Analytics] Dropdown value is undefined, ignoring')
+              }
             }}
           >
-            {last12Months.map((month) => (
+            {monthOptions.map((option) => (
               <DropdownItem
-                key={month}
+                key={option.key}
                 className="data-[selected=true]:bg-primary-500/20"
               >
-                {month}
+                {option.label}
               </DropdownItem>
             ))}
           </DropdownMenu>
@@ -76,6 +104,7 @@ const Analytics = observer(() => {
         data={data}
         title={t('heatMapTitle')}
         description={t('heatMapDescription')}
+        onDateClick={handleDateClick}
       />
 
       {

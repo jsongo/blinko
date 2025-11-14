@@ -178,15 +178,21 @@ router.post('/', async (req, res) => {
           size: fileInfo.size
         });
       } catch (error) {
-        console.error('Upload error:', error);
-        res.status(500).json({ error: "Upload failed" });
+        console.error('Upload error (in busboy finish handler):', error);
+        console.error('Error stack:', error.stack);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        res.status(500).json({ error: "Upload failed", details: error.message });
       }
     });
-    
+
     req.pipe(bb);
   } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ error: "Upload failed" });
+    console.error('Upload error (outer catch):', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+    res.status(500).json({ error: "Upload failed", details: error.message });
   }
 });
 

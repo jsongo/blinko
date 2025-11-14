@@ -13,64 +13,157 @@
 
 /* Base menu item styles */
 .react-contexify .contexify__item,
-.contexify .contexify__item {
+.contexify .contexify__item,
+.react-contexify .contexify__item > *,
+.contexify .contexify__item > * {
   border-radius: 12px !important;
   margin: 0 3px !important;
-  color: black !important;
+  color: #000000 !important;
   background-color: transparent !important;
   font-weight: 500 !important;
-  transition: background-color 0.2s ease !important;
+  transition: background-color 0.2s ease, color 0.2s ease !important;
 }
 
 .react-contexify .contexify__item:hover:not(.contexify__item--disabled),
 .contexify .contexify__item:hover:not(.contexify__item--disabled) {
-  background-color: #f8f8f8 !important;
+  background-color: #f0f0f0 !important;
 }
 
 /* Dark mode styles (using .dark-menu class added by JS) */
 .react-contexify.dark-menu,
-.contexify.dark-menu {
+.contexify.dark-menu,
+nav.react-contexify.dark-menu,
+nav.contexify.dark-menu {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
-  border-color: #3a3a3a !important;
-  background-color: #1c1c1c !important;
+  border-color: #404040 !important;
+  background-color: #1f1f1f !important;
+  /* Override CSS variables for dark mode */
+  --contexify-item-color: #e8e8e8 !important;
 }
 
+/* Enhanced dark mode text color specificity - target all text elements */
 .react-contexify.dark-menu .contexify__item,
 .contexify.dark-menu .contexify__item,
-.react-contexify.dark-menu .contexify__item .contexify_itemContent,
-.contexify.dark-menu .contexify__item .contexify_itemContent,
-.react-contexify.dark-menu .contexify__item .contexify_itemContent *,
-.contexify.dark-menu .contexify__item .contexify_itemContent * {
-  color: #ffffff !important;
+nav.react-contexify.dark-menu .contexify__item,
+nav.contexify.dark-menu .contexify__item,
+.react-contexify.dark-menu .contexify__item > *,
+.contexify.dark-menu .contexify__item > *,
+nav.react-contexify.dark-menu .contexify__item > *,
+nav.contexify.dark-menu .contexify__item > * {
+  color: #e8e8e8 !important;
 }
 
+.react-contexify.dark-menu .contexify__item *,
+.contexify.dark-menu .contexify__item *,
+nav.react-contexify.dark-menu .contexify__item *,
+nav.contexify.dark-menu .contexify__item *,
+.react-contexify.dark-menu .contexify__item > * > *,
+.contexify.dark-menu .contexify__item > * > *,
+nav.react-contexify.dark-menu .contexify__item > * > *,
+nav.contexify.dark-menu .contexify__item > * > * {
+  color: #e8e8e8 !important;
+}
+
+/* Force dark mode text color on div and span elements specifically */
+.react-contexify.dark-menu .contexify__item div,
+.contexify.dark-menu .contexify__item div,
+.react-contexify.dark-menu .contexify__item span,
+.contexify.dark-menu .contexify__item span,
+nav.react-contexify.dark-menu .contexify__item div,
+nav.contexify.dark-menu .contexify__item div,
+nav.react-contexify.dark-menu .contexify__item span,
+nav.contexify.dark-menu .contexify__item span {
+  color: #e8e8e8 !important;
+}
+
+/* Force dark mode on contexify_itemContent class specifically */
+.react-contexify.dark-menu .contexify_itemContent,
+.contexify.dark-menu .contexify_itemContent,
+nav.react-contexify.dark-menu .contexify_itemContent,
+nav.contexify.dark-menu .contexify_itemContent {
+  color: #e8e8e8 !important;
+}
+
+/* Hover state for dark mode */
 .react-contexify.dark-menu .contexify__item:hover:not(.contexify__item--disabled),
-.contexify.dark-menu .contexify__item:hover:not(.contexify__item--disabled) {
+.contexify.dark-menu .contexify__item:hover:not(.contexify__item--disabled),
+nav.react-contexify.dark-menu .contexify__item:hover:not(.contexify__item--disabled),
+nav.contexify.dark-menu .contexify__item:hover:not(.contexify__item--disabled) {
   background-color: #2d2d2d !important;
 }
 
-/* Exception for specifically colored text in dark mode */
+/* Override any blue hover background from the library */
+.react-contexify.dark-menu .contexify__item:hover:not(.contexify__item--disabled) .contexify_itemContent,
+.contexify.dark-menu .contexify__item:hover:not(.contexify__item--disabled) .contexify_itemContent,
+nav.react-contexify.dark-menu .contexify__item:hover:not(.contexify__item--disabled) .contexify_itemContent,
+nav.contexify.dark-menu .contexify__item:hover:not(.contexify__item--disabled) .contexify_itemContent {
+  background-color: transparent !important;
+}
+
+/* Exception for specifically colored text in dark mode - preserve semantic colors */
 .react-contexify.dark-menu .contexify__item .text-blue-500,
-.contexify.dark-menu .contexify__item .text-blue-500 {
-  color: rgb(59 130 246) !important;
+.contexify.dark-menu .contexify__item .text-blue-500,
+nav.react-contexify.dark-menu .contexify__item .text-blue-500,
+nav.contexify.dark-menu .contexify__item .text-blue-500,
+.react-contexify.dark-menu .contexify__item .text-blue-500 *,
+.contexify.dark-menu .contexify__item .text-blue-500 *,
+nav.react-contexify.dark-menu .contexify__item .text-blue-500 *,
+nav.contexify.dark-menu .contexify__item .text-blue-500 * {
+  color: rgb(96 165 250) !important;
 }
 
 .react-contexify.dark-menu .contexify__item .text-yellow-500,
-.contexify.dark-menu .contexify__item .text-yellow-500 {
-  color: rgb(234 179 8) !important;
+.contexify.dark-menu .contexify__item .text-yellow-500,
+nav.react-contexify.dark-menu .contexify__item .text-yellow-500,
+nav.contexify.dark-menu .contexify__item .text-yellow-500,
+.react-contexify.dark-menu .contexify__item .text-yellow-500 *,
+.contexify.dark-menu .contexify__item .text-yellow-500 *,
+nav.react-contexify.dark-menu .contexify__item .text-yellow-500 *,
+nav.contexify.dark-menu .contexify__item .text-yellow-500 * {
+  color: rgb(250 204 21) !important;
+}
+
+.react-contexify.dark-menu .contexify__item .text-red-500,
+.contexify.dark-menu .contexify__item .text-red-500,
+nav.react-contexify.dark-menu .contexify__item .text-red-500,
+nav.contexify.dark-menu .contexify__item .text-red-500,
+.react-contexify.dark-menu .contexify__item .text-red-500 *,
+.contexify.dark-menu .contexify__item .text-red-500 *,
+nav.react-contexify.dark-menu .contexify__item .text-red-500 *,
+nav.contexify.dark-menu .contexify__item .text-red-500 * {
+  color: rgb(248 113 113) !important;
 }
 
 /* Disabled state */
 .react-contexify .contexify__item--disabled,
-.contexify .contexify__item--disabled {
+.contexify .contexify__item--disabled,
+nav.react-contexify .contexify__item--disabled,
+nav.contexify .contexify__item--disabled {
   opacity: 0.5 !important;
   cursor: not-allowed !important;
 }
 
+/* Dark mode disabled state */
+.react-contexify.dark-menu .contexify__item--disabled,
+.contexify.dark-menu .contexify__item--disabled,
+nav.react-contexify.dark-menu .contexify__item--disabled,
+nav.contexify.dark-menu .contexify__item--disabled {
+  opacity: 0.4 !important;
+}
+
 /* Separator */
+.react-contexify .contexify__separator,
 .contexify .contexify__separator {
   margin: 4px 0 !important;
-  border-top: 1px solid var(--border) !important;
+  border-top: 1px solid #e5e5e5 !important;
+}
+
+/* Dark mode separator */
+.react-contexify.dark-menu .contexify__separator,
+.contexify.dark-menu .contexify__separator,
+nav.react-contexify.dark-menu .contexify__separator,
+nav.contexify.dark-menu .contexify__separator {
+  border-top: 1px solid #404040 !important;
 }
 
 /* Animation */

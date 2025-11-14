@@ -48,8 +48,25 @@ export const analyticsRouter = router({
       })).optional()
     }))
     .mutation(async function ({ ctx, input }) {
-      const startDate = dayjs(input.month).startOf('month').toDate()
-      const endDate = dayjs(input.month).endOf('month').toDate()
+      // Support "all" to query all notes, or specific date (YYYY-MM-DD) or month (YYYY-MM)
+      const isAllTime = input.month === 'all'
+      const isDayLevel = input.month.length === 10 // YYYY-MM-DD format
+
+      let startDate: Date
+      let endDate: Date
+
+      if (isAllTime) {
+        startDate = new Date(0)
+        endDate = new Date()
+      } else if (isDayLevel) {
+        // Query specific day
+        startDate = dayjs(input.month).startOf('day').toDate()
+        endDate = dayjs(input.month).endOf('day').toDate()
+      } else {
+        // Query month
+        startDate = dayjs(input.month).startOf('month').toDate()
+        endDate = dayjs(input.month).endOf('month').toDate()
+      }
 
       const noteCount = await prisma.notes.count({
         where: {

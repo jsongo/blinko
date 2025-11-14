@@ -9,7 +9,7 @@ import { api } from '@/lib/trpc';
 import { RootStore } from "@/store";
 import { DialogStore } from "@/store/module/Dialog";
 import { BlinkoEditor } from "../BlinkoEditor";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { NoteType } from "@shared/lib/types";
 import { AiStore } from "@/store/aiStore";
 import { parseAbsoluteToLocal } from "@internationalized/date";
@@ -238,7 +238,8 @@ const handleTop = () => {
   const blinko = RootStore.Get(BlinkoStore)
   blinko.upsertNote.call({
     id: blinko.curSelectedNote?.id,
-    isTop: !blinko.curSelectedNote?.isTop
+    isTop: !blinko.curSelectedNote?.isTop,
+    refresh: true
   })
 }
 
@@ -269,7 +270,8 @@ const handleArchived = () => {
     return blinko.upsertNote.call({
       id: blinko.curSelectedNote?.id,
       isRecycle: false,
-      isArchived: false
+      isArchived: false,
+      refresh: true
     })
   }
 
@@ -277,13 +279,15 @@ const handleArchived = () => {
     return blinko.upsertNote.call({
       id: blinko.curSelectedNote?.id,
       isArchived: false,
+      refresh: true
     })
   }
 
   if (!blinko.curSelectedNote?.isArchived) {
     return blinko.upsertNote.call({
       id: blinko.curSelectedNote?.id,
-      isArchived: true
+      isArchived: true,
+      refresh: true
     })
   }
 }
@@ -294,15 +298,17 @@ const handleAITag = () => {
   aiStore.autoTag.call(blinko.curSelectedNote?.id!, blinko.curSelectedNote?.content!)
 }
 
-const handleTrash = () => {
+const handleTrash = async () => {
   const blinko = RootStore.Get(BlinkoStore)
-  PromiseCall(api.notes.trashMany.mutate({ ids: [blinko.curSelectedNote?.id!] }))
+  await PromiseCall(api.notes.trashMany.mutate({ ids: [blinko.curSelectedNote?.id!] }))
+  blinko.updateTicker++
 }
 
 const handleDelete = async () => {
   const blinko = RootStore.Get(BlinkoStore)
-  PromiseCall(api.notes.deleteMany.mutate({ ids: [blinko.curSelectedNote?.id!] }))
+  await PromiseCall(api.notes.deleteMany.mutate({ ids: [blinko.curSelectedNote?.id!] }))
   api.ai.embeddingDelete.mutate({ id: blinko.curSelectedNote?.id! })
+  blinko.updateTicker++
 }
 
 const handleRelatedNotes = async () => {
@@ -378,7 +384,8 @@ export const ConvertItemFunction = () => {
   const blinko = RootStore.Get(BlinkoStore)
   blinko.upsertNote.call({
     id: blinko.curSelectedNote?.id,
-    type: blinko.curSelectedNote?.type == NoteType.NOTE ? NoteType.BLINKO : NoteType.NOTE
+    type: blinko.curSelectedNote?.type == NoteType.NOTE ? NoteType.BLINKO : NoteType.NOTE,
+    refresh: true
   })
 }
 
@@ -489,14 +496,14 @@ export const BlinkoRightClickMenu = observer(() => {
     </ContextMenuItem>
 
     {!isDetailPage && (
-      <>
+      <React.Fragment key="multi-select-items">
         <ContextMenuItem onClick={() => handleMultiSelect()}>
           <MutiSelectItem />
         </ContextMenuItem>
         <ContextMenuItem onClick={() => handleSelectAll()}>
           <SelectAllItem />
         </ContextMenuItem>
-      </>
+      </React.Fragment>
     )}
 
     <ContextMenuItem onClick={() => ShowEditTimeModel()}>
@@ -552,13 +559,13 @@ export const BlinkoRightClickMenu = observer(() => {
       <ContextMenuItem onClick={handleTrash}>
         <TrashItem />
       </ContextMenuItem>
-    ) : <></>}
+    ) : null}
 
     {blinko.curSelectedNote?.isRecycle ? (
       <ContextMenuItem onClick={handleDelete}>
         <DeleteItem />
       </ContextMenuItem>
-    ) : <></>}
+    ) : null}
   </ContextMenu>
 })
 

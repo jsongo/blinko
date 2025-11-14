@@ -159,6 +159,7 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
           }
           blinko.updateTicker++
         } else {
+          console.debug('[BlinkoEditor] Saving edit mode note with refresh=true');
           await blinko.upsertNote.call({
             id: blinko.curSelectedNote!.id,
             type: noteType,
@@ -170,6 +171,7 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
             metadata,
             refresh: true  // Explicitly ensure refresh after edit
           })
+          console.debug('[BlinkoEditor] Edit saved, updateTicker should increment');
           try {
             const index = blinko.editAttachmentsStorage.list?.findIndex(i => i.id == blinko.curSelectedNote!.id)
             if (index != -1) {
