@@ -75,6 +75,9 @@ body {
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
   background-color: var(--secondbackground);
+  /* Add safe area padding for mobile devices */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .h-mobile-full {

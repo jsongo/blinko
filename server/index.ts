@@ -1,12 +1,15 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import zlib from 'zlib';
 import fs from 'fs';
 import authRoutes from './routerExpress/auth';
 import { configureSession } from './routerExpress/auth/config';
 
-// tRPC related imports
+// ES module __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { createContext } from './context';
 import { appRouter } from './routerTrpc/_app';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
@@ -57,21 +60,8 @@ const appRootDev = path.resolve(__dirname, '../app');
 const appRootProd = path.resolve(__dirname, '../server');
 let server: any = null;
 
-if (process.env.NODE_ENV === 'production') {
-  // Vite configuration
-  ViteExpress.config({
-    mode: 'production',
-    inlineViteConfig: {
-      //docker production dir /dist not development dir
-      root: appRootProd,
-      build: { outDir: "public" }
-    }
-  });
-} else {
-  ViteExpress.config({
-    viteConfigFile: path.resolve(appRootDev, 'vite.config.ts')
-  });
-}
+// ViteExpress configuration is done inline during listen/bind
+// Don't configure it here to avoid conflicts
 
 // Global error handler
 const errorHandler = (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -229,17 +219,34 @@ async function bootstrap() {
       errorHandler(err, req, res, next);
     });
 
-    // Start or update server
+    // Start server
     if (!server) {
       if (process.env.NODE_ENV === 'production') {
+        // Production: serve static files
+        const publicPath = path.resolve(appRootProd, 'public');
+        if (!fs.existsSync(publicPath)) {
+          console.warn(`Warning: Public directory not found at ${publicPath}`);
+        }
+        
+        ViteExpress.config({
+          mode: 'production',
+          inlineViteConfig: {
+            root: appRootProd,
+            build: { outDir: "public" }
+          }
+        });
+        
         server = app.listen(PORT, "0.0.0.0", () => {
-          console.log(`🎉server start on port http://0.0.0.0:${PORT} - env: ${process.env.NODE_ENV || 'development'}`);
+          console.log(`🎉server start on port http://0.0.0.0:${PORT} - env: production`);
         });
         ViteExpress.bind(app, server);
       } else {
-        // In development, use ViteExpress.listen for proper Vite dev server integration
-        ViteExpress.listen(app, PORT, () => {
-          console.log(`🎉server start on port http://0.0.0.0:${PORT} - env: ${process.env.NODE_ENV || 'development'}`);
+        // Development: API-only mode (frontend runs separately via `bun dev:frontend`)
+        // This avoids the vite-express integration issue in dev mode
+        server = app.listen(PORT, "0.0.0.0", () => {
+          console.log(`🎉Backend API server listening on port http://0.0.0.0:${PORT}`);
+          console.log(`⚠️  Frontend should be started separately with: bun dev:frontend`);
+          console.log(`   Frontend will be available at: http://localhost:5173`);
         });
       }
     } else {
