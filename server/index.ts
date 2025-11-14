@@ -7,9 +7,21 @@ import fs from 'fs';
 import authRoutes from './routerExpress/auth';
 import { configureSession } from './routerExpress/auth/config';
 
-// ES module __dirname equivalent
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Get __dirname equivalent for both ES modules and CommonJS
+function getDirname(): string {
+  // In CommonJS (compiled code), __dirname is available as global
+  if (typeof __dirname !== 'undefined') {
+    return __dirname;
+  }
+  // In ES modules, use import.meta.url
+  if (typeof import.meta !== 'undefined' && import.meta.url) {
+    return path.dirname(fileURLToPath(import.meta.url));
+  }
+  // Fallback to current working directory
+  return process.cwd();
+}
+
+const currentDir = getDirname();
 import { createContext } from './context';
 import { appRouter } from './routerTrpc/_app';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
@@ -56,8 +68,8 @@ process.on('exit', (code) => {
 // Server configuration
 const app = express();
 const PORT = 1111;
-const appRootDev = path.resolve(__dirname, '../app');
-const appRootProd = path.resolve(__dirname, '../server');
+const appRootDev = path.resolve(currentDir, '../app');
+const appRootProd = path.resolve(currentDir, '../server');
 let server: any = null;
 
 // ViteExpress configuration is done inline during listen/bind
@@ -102,7 +114,7 @@ async function setupApiRoutes(app: express.Application) {
   
   // Special handling for lute.min.js with gzip compression
   app.use('/dist/js/lute/lute.min.js', (req, res) => {
-    const filePath = path.resolve(__dirname, './lute.min.js');
+    const filePath = path.resolve(currentDir, './lute.min.js');
     
     // Check if client accepts gzip encoding
     const acceptEncoding = req.headers['accept-encoding'] || '';
@@ -131,7 +143,7 @@ async function setupApiRoutes(app: express.Application) {
       'Cache-Control': 'public, max-age=604800, immutable',
       'Expires': new Date(Date.now() + 604800000).toUTCString()
     });
-    res.sendFile(path.resolve(__dirname, './lute.min.js'));
+    res.sendFile(path.resolve(currentDir, './lute.min.js'));
   });
   app.use('/plugins', pluginRouter);
 

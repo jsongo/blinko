@@ -1,0 +1,163 @@
+name: Build Docker Multi-Arch
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. 1.0.0)'
+        required: true
+        type: string
+      set_latest:
+        description: 'Also tag as latest'
+        type: boolean
+        default: true
+
+jobs:
+  # 触发 AMD64 和 ARM64 构建
+  trigger-builds:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ github.event.inputs.version }}
+      set_latest: ${{ github.event.inputs.set_latest }}
+    steps:
+      - name: Trigger AMD64 build
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build-docker-amd64.yml',
+              ref: context.ref,
+              inputs: {
+                version: '${{ github.event.inputs.version }}',
+                set_latest: '${{ github.event.inputs.set_latest }}'
+              }
+            });
+
+      - name: Trigger ARM64 build
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build-docker-arm64.yml',
+              ref: context.ref,
+              inputs: {
+                version: '${{ github.event.inputs.version }}',
+                set_latest: '${{ github.event.inputs.set_latest }}'
+              }
+            });
+
+      - name: Wait for builds
+        run: |
+          echo "Triggered parallel builds for AMD64 and ARM64"
+          echo "This workflow will now wait for them to complete..."
+          sleep 60
+
+  # 等待并创建 manifest
+  create-manifest:
+    needs: trigger-builds
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Wait for architecture builds
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+            const maxWait = 60 * 60 * 1000; // 60 minutes
+            const checkInterval = 30 * 1000; // 30 seconds
+            let waited = 0;
+
+            while (waited < maxWait) {
+              const runs = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'build-docker-amd64.yml',
+                per_page: 5
+              });
+
+              const amd64Run = runs.data.workflow_runs[0];
+
+              const arm64Runs = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'build-docker-arm64.yml',
+                per_page: 5
+              });
+
+              const arm64Run = arm64Runs.data.workflow_runs[0];
+
+              if (amd64Run.status === 'completed' && arm64Run.status === 'completed') {
+                if (amd64Run.conclusion === 'success' && arm64Run.conclusion === 'success') {
+                  console.log('Both builds completed successfully!');
+                  return;
+                } else {
+                  throw new Error('One or both builds failed');
+                }
+              }
+
+              console.log(`Waiting for builds to complete... (${Math.round(waited/1000)}s elapsed)`);
+              await sleep(checkInterval);
+              waited += checkInterval;
+            }
+
+            throw new Error('Builds did not complete within timeout');
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifest (Docker Hub)
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+
+          # Create version manifest
+          docker buildx imagetools create -t jsongo/blinko:${VERSION} \
+            jsongo/blinko:${VERSION}-amd64 \
+            jsongo/blinko:${VERSION}-arm64
+
+          # Create latest manifest if requested
+          if [ "${{ github.event.inputs.set_latest }}" = "true" ]; then
+            docker buildx imagetools create -t jsongo/blinko:latest \
+              jsongo/blinko:latest-amd64 \
+              jsongo/blinko:latest-arm64
+          fi
+
+      - name: Create and push multi-arch manifest (GHCR)
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          REPO="ghcr.io/${{ github.repository_owner }}/blinko"
+
+          # Create version manifest
+          docker buildx imagetools create -t ${REPO}:${VERSION} \
+            ${REPO}:${VERSION}-amd64 \
+            ${REPO}:${VERSION}-arm64
+
+          # Create latest manifest if requested
+          if [ "${{ github.event.inputs.set_latest }}" = "true" ]; then
+            docker buildx imagetools create -t ${REPO}:latest \
+              ${REPO}:latest-amd64 \
+              ${REPO}:latest-arm64
+          fi
+
+      - name: Success message
+        run: |
+          echo "✅ Multi-arch Docker images created successfully!"
+          echo "Tags: jsongo/blinko:${{ github.event.inputs.version }}"
+          if [ "${{ github.event.inputs.set_latest }}" = "true" ]; then
+            echo "      jsongo/blinko:latest"
+          fi

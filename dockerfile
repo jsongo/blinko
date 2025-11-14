@@ -119,8 +119,28 @@ RUN echo "======================================" && \
 RUN echo "Starting build:seed..." && \
     bun run build:seed 2>&1 || (echo "Build seed failed! Check the error above." && exit 1)
 
-# 生成启动脚本
-RUN printf '#!/bin/sh\necho "Current Environment: $NODE_ENV"\nnpx prisma migrate deploy\nnode server/seed.js\nnode server/index.js\n' > start.sh && \
+# 生成启动脚本（带错误处理）
+RUN printf '#!/bin/sh\n\
+set -e\n\
+\n\
+echo "========================================="\n\
+echo "Starting Blinko..."\n\
+echo "Environment: $NODE_ENV"\n\
+echo "========================================="\n\
+\n\
+echo "Running database migrations..."\n\
+npx prisma migrate deploy || {\n\
+  echo "ERROR: Database migration failed!"\n\
+  exit 1\n\
+}\n\
+\n\
+echo "Running database seed..."\n\
+node server/seed.js || {\n\
+  echo "WARNING: Database seed failed, but continuing..."\n\
+}\n\
+\n\
+echo "Starting application server..."\n\
+exec node server/index.js\n' > start.sh && \
     chmod +x start.sh
 
 
@@ -207,7 +227,12 @@ RUN npx prisma generate
 
 RUN chmod +x ./start.sh
 
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:1111/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+
 # Expose Port (Adjust According to Actual Application)
 EXPOSE 1111
 
-CMD ["/usr/local/bin/dumb-init", "--", "/bin/sh", "-c", "./start.sh"]
+ENTRYPOINT ["/usr/local/bin/dumb-init", "--"]
+CMD ["/bin/sh", "-c", "./start.sh"]

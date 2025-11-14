@@ -1,4 +1,4 @@
-name: Simple Docker Build
+name: Build Docker ARM64
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ on:
         default: true
 
 jobs:
-  build-and-push:
+  build-arm64:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -21,6 +21,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -38,30 +43,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push ARM64 image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./dockerfile
-          # 可选: 只构建 AMD64 (快 2-3 倍)
-          # platforms: linux/amd64
-          # 或: 构建双架构 (支持 ARM 用户)
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/arm64
           push: true
           build-args: |
             BUILD_MEMORY=8192
           tags: |
-            jsongo/blinko:${{ github.event.inputs.version }}
-            ${{ github.event.inputs.set_latest && 'jsongo/blinko:latest' || '' }}
-            ghcr.io/${{ github.repository_owner }}/blinko:${{ github.event.inputs.version }}
-            ${{ github.event.inputs.set_latest && format('ghcr.io/{0}/blinko:latest', github.repository_owner) || '' }}
+            jsongo/blinko:${{ github.event.inputs.version }}-arm64
+            ${{ github.event.inputs.set_latest && 'jsongo/blinko:latest-arm64' || '' }}
+            ghcr.io/${{ github.repository_owner }}/blinko:${{ github.event.inputs.version }}-arm64
+            ${{ github.event.inputs.set_latest && format('ghcr.io/{0}/blinko:latest-arm64', github.repository_owner) || '' }}
           cache-from: |
-            type=gha,scope=docker-build
-            type=registry,ref=jsongo/blinko:buildcache
-          cache-to: type=gha,mode=max,scope=docker-build
+            type=gha,scope=docker-arm64
+            type=registry,ref=jsongo/blinko:buildcache-arm64
+          cache-to: type=gha,mode=max,scope=docker-arm64
           labels: |
             org.opencontainers.image.version=${{ github.event.inputs.version }}
-            org.opencontainers.image.created=${{ github.event_name }}
+            org.opencontainers.image.created=${{ github.event.run_started_at }}
 
       - name: Image digest
-        run: echo "Docker images pushed successfully!"
+        run: echo "ARM64 image pushed successfully!"
