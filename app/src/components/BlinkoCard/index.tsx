@@ -71,15 +71,13 @@ export const BlinkoCard = observer(({ blinkoItem, account, isShareMode = false, 
   }) || '';
 
   const handleExpand = () => {
-    if (blinkoItem.isBlog) {
-      setIsExpanded(true);
-    }
+    setIsExpanded(true);
   };
 
   const handleClick = () => {
     if (blinko.isMultiSelectMode) {
       blinko.onMultiSelectNote(blinkoItem.id!);
-    } else {
+    } else if (!isExpanded) {
       handleExpand();
     }
   };
@@ -114,7 +112,7 @@ export const BlinkoCard = observer(({ blinkoItem, account, isShareMode = false, 
                 flex flex-col p-4 ${glassEffect ? 'bg-transparent' : 'bg-background'} !transition-all group/card
                 ${isExpanded ? 'h-screen overflow-y-scroll rounded-none' : ''}
                 ${isPc && !isExpanded && !blinkoItem.isShare && !withoutHoverAnimation ? 'hover:translate-y-1' : ''}
-                ${blinkoItem.isBlog ? 'cursor-pointer' : ''}
+                ${!isExpanded ? 'cursor-pointer' : ''}
                 ${blinko.curMultiSelectIds?.includes(blinkoItem.id!) ? 'border-2 border-primary' : ''}
                 ${className}
               `}

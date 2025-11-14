@@ -31,6 +31,8 @@ export const noteRouter = router({
         page: z.number().default(1),
         size: z.number().default(30),
         orderBy: z.enum(['asc', 'desc']).default('desc'),
+        sortBy: z.enum(['createdAt', 'updatedAt', 'content']).default('createdAt').optional(),
+        sortDirection: z.enum(['asc', 'desc']).default('desc').optional(),
         type: z.union([z.nativeEnum(NoteType), z.literal(-1)]).default(-1),
         isArchived: z.union([z.boolean(), z.null()]).default(false).optional(),
         isShare: z.union([z.boolean(), z.null()]).default(null).optional(),
@@ -104,7 +106,7 @@ export const noteRouter = router({
       ),
     )
     .mutation(async function ({ input, ctx }) {
-      const { tagId, type, isArchived, isRecycle, searchText, page, size, orderBy, withFile, withoutTag, withLink, isUseAiQuery, startDate, endDate, isShare, hasTodo } = input;
+      const { tagId, type, isArchived, isRecycle, searchText, page, size, orderBy, sortBy, sortDirection, withFile, withoutTag, withLink, isUseAiQuery, startDate, endDate, isShare, hasTodo } = input;
       if (isUseAiQuery && searchText?.trim() != '') {
         const cleanedQuery = searchText?.replace(/@/g, '').trim();
         if (cleanedQuery && cleanedQuery.length > 0) {
@@ -198,11 +200,19 @@ export const noteRouter = router({
         ];
       }
       const config = await getGlobalConfig({ ctx });
-      let timeOrderBy = config?.isOrderByCreateTime ? { createdAt: orderBy } : { updatedAt: orderBy };
+
+      // Determine the sort order based on sortBy and sortDirection parameters
+      let customOrderBy: any;
+      if (sortBy && sortDirection) {
+        customOrderBy = { [sortBy]: sortDirection };
+      } else {
+        // Fallback to original logic if no custom sort is specified
+        customOrderBy = config?.isOrderByCreateTime ? { createdAt: orderBy } : { updatedAt: orderBy };
+      }
 
       const notes = await prisma.notes.findMany({
         where,
-        orderBy: [{ isTop: 'desc' }, { sortOrder: 'asc' }, timeOrderBy],
+        orderBy: [{ isTop: 'desc' }, { sortOrder: 'asc' }, customOrderBy],
         skip: (page - 1) * size,
         take: size,
         include: {

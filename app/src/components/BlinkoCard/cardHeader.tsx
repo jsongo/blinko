@@ -1,7 +1,7 @@
 import { Icon } from '@/components/Common/Iconify/icons';
 import { Button, Tooltip } from '@heroui/react';
 import { Copy } from "../Common/Copy";
-import { LeftCickMenu, ShowEditTimeModel } from "../BlinkoRightClickMenu";
+import { LeftCickMenu, ShowEditTimeModel, ShowEditBlinkoModel } from "../BlinkoRightClickMenu";
 import { BlinkoStore } from '@/store/blinkoStore';
 import { Note, NoteType } from '@shared/lib/types';
 import { RootStore } from '@/store';
@@ -16,6 +16,7 @@ import { AvatarAccount, CommentButton, UserAvatar } from './commentButton';
 import { HistoryButton } from '../BlinkoNoteHistory/HistoryButton';
 import { api } from '@/lib/trpc';
 import { PromiseCall } from '@/store/standard/PromiseState';
+import { FocusEditorFixMobile } from '../Common/Editor/editorUtils';
 
 interface CardHeaderProps {
   blinkoItem: Note;
@@ -53,20 +54,35 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isExpande
   };
 
   return (
-    <div className={`flex items-center select-none ${isExpanded ? 'mb-4' : 'mb-1'}`}>
+    <div className={`flex items-center select-none ${isExpanded ? 'mb-4' : 'mb-2'}`}>
       <div className={`flex items-center w-full gap-1 ${isExpanded ? 'text-base' : 'text-xs'}`}>
         {isExpanded && (
-          <Button
-            isIconOnly
-            variant='flat'
-            size='sm'
-            className='mr-2'
-            onPress={(e) => {
-              window.history.back();
-            }}
-          >
-            <Icon icon="tabler:arrow-left" width={iconSize} height={iconSize} />
-          </Button>
+          <>
+            <Button
+              isIconOnly
+              variant='flat'
+              size='sm'
+              className='mr-2'
+              onPress={(e) => {
+                window.history.back();
+              }}
+            >
+              <Icon icon="tabler:arrow-left" width={iconSize} height={iconSize} />
+            </Button>
+            <Button
+              isIconOnly
+              variant='flat'
+              size='sm'
+              className='mr-2'
+              onPress={() => {
+                blinko.curSelectedNote = _.cloneDeep(blinkoItem);
+                ShowEditBlinkoModel();
+                FocusEditorFixMobile();
+              }}
+            >
+              <Icon icon="tabler:edit" width={iconSize} height={iconSize} />
+            </Button>
+          </>
         )}
 
         {blinkoItem.isShare && !isShareMode && (

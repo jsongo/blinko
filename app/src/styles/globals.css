@@ -75,9 +75,19 @@ body {
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
   background-color: var(--secondbackground);
-  /* Add safe area padding for mobile devices */
+}
+
+/* Add safe area padding for mobile devices - only on body to avoid double padding */
+body {
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Fix mobile header spacing - add padding for fixed header on mobile */
+@media (max-width: 768px) {
+  #page-wrap {
+    padding-top: 60px; /* h-14 = 56px */
+  }
 }
 
 .h-mobile-full {

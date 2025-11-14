@@ -3,7 +3,7 @@ import Provider from "./Provider";
 import { ModalSlots, SlotsToClasses } from "@heroui/react";
 import { Store } from "@/store/standard/base";
 import { RootStore } from "@/store/root";
-import { makeAutoObservable } from "mobx";
+import { makeAutoObservable, observable } from "mobx";
 
 export class DialogStandaloneStore implements Store {
   sid = "DialogStandaloneStore";
@@ -28,7 +28,10 @@ export class DialogStandaloneStore implements Store {
       ...args?.classNames
     }
     Object.assign(this, args, { classNames });
-    makeAutoObservable(this)
+    makeAutoObservable(this, {
+      provider: false,
+      content: observable.ref
+    })
   }
 
 

@@ -399,13 +399,15 @@ export const MyAudioRecorder = ({ onComplete }: MyAudioRecorderProps) => {
 }
 
 export const ShowAudioDialog = ((onComplete: (file: File) => void) => {
-  return RootStore.Get(DialogStandaloneStore).setData({
+  const dialogStore = RootStore.Get(DialogStandaloneStore);
+  return dialogStore.setData({
     size: 'sm',
     onlyContent: true,
     isOpen: true,
     content: <MyAudioRecorder onComplete={(file) => {
-      onComplete(file)
-      RootStore.Get(DialogStandaloneStore).close();
+      onComplete(file);
+      const store = RootStore.Get(DialogStandaloneStore);
+      store.close();
     }} />
   })
 })

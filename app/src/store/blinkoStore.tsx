@@ -104,6 +104,13 @@ export class BlinkoStore implements Store {
     endDate: null as Date | null,
     hasTodo: false
   }
+  noteListSortConfig: {
+    sortBy: string;
+    direction: string;
+  } = {
+    sortBy: 'createdAt',
+    direction: 'desc'
+  }
   noteTypeDefault: NoteType = NoteType.BLINKO
   currentCommonFilter: filterType | null = null
   updateTicker = 0
@@ -151,14 +158,18 @@ export class BlinkoStore implements Store {
     let notes: Note[] = [];
 
     if (this.isOnline) {
-      notes = await api.notes.list.mutate({ 
-        ...this.noteListFilterConfig, 
+      const apiParams = {
+        ...this.noteListFilterConfig,
         ...filterConfig,
-        searchText: this.searchText, 
-        page, 
-        size 
-      });
-      
+        searchText: this.searchText,
+        page,
+        size,
+        sortBy: this.noteListSortConfig.sortBy,
+        sortDirection: this.noteListSortConfig.direction
+      };
+      console.debug('API params for notes.list:', apiParams);
+      notes = await api.notes.list.mutate(apiParams);
+
       if (this.offlineNotes.length > 0) {
         await this.syncOfflineNotes();
       }

@@ -16,6 +16,7 @@ import AiWritePop from '../Common/PopoverFloat/aiWritePop';
 import { Sidebar } from './Sidebar';
 import { MobileNavBar } from './MobileNavBar';
 import FilterPop from '../Common/PopoverFloat/filterPop';
+import SortPop from '../Common/PopoverFloat/sortPop';
 import { api } from '@/lib/trpc';
 import { showTipsDialog } from '../Common/TipsDialog';
 import { DialogStandaloneStore } from '@/store/module/DialogStandalone';
@@ -76,7 +77,13 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
     location.pathname == '/oauth-callback' ||
     location.pathname.includes('/ai-share')
   ) {
-    return <>{children}</>;
+    return (
+      <div id="outer-container">
+        <div id="page-wrap">
+          {children}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -178,6 +185,7 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
               </div>
               <div className="flex items-center justify-center gap-2 md:gap-4 w-auto ">
                 <BarSearchInput isPc={isPc} />
+                <SortPop />
                 <FilterPop />
                 {!blinkoStore.config.value?.isCloseDailyReview && <Badge size="sm" className="shrink-0" content={blinkoStore.dailyReviewNoteList.value?.length} color="warning">
                   <Link to="/review">

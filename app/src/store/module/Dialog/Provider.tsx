@@ -141,7 +141,7 @@ const Dialog = observer(() => {
           )}
           {
             onlyContent && <motion.div
-              className="w-full pointer-events-auto "
+              className="w-full pointer-events-auto pt-[env(safe-area-inset-top)]"
               {...motionConfig}
             >
               <div className="relative w-full">
