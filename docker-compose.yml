@@ -6,6 +6,7 @@ services:
       context: .
       args:
         USE_MIRROR: "true"
+        BUILD_MEMORY: "8192"
       dockerfile: ./dockerfile
       # 增加构建时共享内存
       shm_size: '2gb'

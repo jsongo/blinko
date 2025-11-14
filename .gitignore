@@ -34,3 +34,4 @@ dev-dist
 target
 server/public
 data/
+backup/

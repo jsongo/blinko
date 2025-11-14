@@ -3,59 +3,54 @@ generator client {
   binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-arm64-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
 }
 
-// generator zod {
-//   provider = "zod-prisma-types"
-// }
-
 datasource db {
   provider = "postgres"
   url      = env("DATABASE_URL")
 }
 
 model accounts {
-  id            Int             @id @default(autoincrement())
-  name          String          @default("") @db.VarChar
-  nickname      String          @default("") @db.VarChar
-  password      String          @default("") @db.VarChar
-  image         String          @default("") @db.VarChar
-  apiToken      String          @default("") @db.VarChar
-  description   String          @default("") @db.Text
-  note          Int             @default(0)
-  role          String          @default("") @db.VarChar
-  loginType     String          @default("") @db.VarChar
+  id            Int                 @id @default(autoincrement())
+  name          String              @default("") @db.VarChar
+  nickname      String              @default("") @db.VarChar
+  password      String              @default("") @db.VarChar
+  image         String              @default("") @db.VarChar
+  apiToken      String              @default("") @db.VarChar
+  note          Int                 @default(0)
+  role          String              @default("") @db.VarChar
+  createdAt     DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime            @updatedAt @db.Timestamptz(6)
+  loginType     String              @default("") @db.VarChar
   linkAccountId Int?
-  createdAt     DateTime        @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime        @updatedAt @db.Timestamptz(6)
-  notes         notes[]
-  configs       config[]
-  tags          tag[]
-  comments      comments[]
+  description   String              @default("")
   attachments   attachments[]
-  follows       follows[]
-  notifications notifications[]
+  comments      comments[]
+  configs       config[]
   conversations conversation[]
+  follows       follows[]
   sharedNotes   noteInternalShare[]
+  notes         notes[]
+  notifications notifications[]
+  tags          tag[]
 }
 
 model attachments {
-  id            Int      @id @default(autoincrement())
-  isShare       Boolean  @default(false)
-  sharePassword String   @default("") @db.VarChar
-  name          String   @default("") @db.VarChar
-  path          String   @default("") @db.VarChar
-  size          Decimal  @default(0) @db.Decimal
-  type          String   @default("") @db.VarChar
+  id            Int       @id @default(autoincrement())
+  isShare       Boolean   @default(false)
+  sharePassword String    @default("") @db.VarChar
+  name          String    @default("") @db.VarChar
+  path          String    @default("") @db.VarChar
+  size          Decimal   @default(0) @db.Decimal
   noteId        Int?
-  accountId     Int?
-  sortOrder     Int      @default(0)
-  createdAt     DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
-  perfixPath    String?  @default("") @db.VarChar // folder1,folder2,folder3
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(6)
+  type          String    @default("") @db.VarChar
+  sortOrder     Int       @default(0)
   depth         Int?
-  metadata      Json?           @db.Json
-
-  note    notes?    @relation(fields: [noteId], references: [id])
-  account accounts? @relation(fields: [accountId], references: [id])
+  perfixPath    String?   @default("") @db.VarChar
+  accountId     Int?
+  metadata      Json?     @db.Json
+  account       accounts? @relation(fields: [accountId], references: [id])
+  note          notes?    @relation(fields: [noteId], references: [id])
 }
 
 model config {
@@ -67,50 +62,49 @@ model config {
 }
 
 model notes {
-  id                Int             @id @default(autoincrement())
-  type              Int             @default(0)
-  content           String          @default("") @db.VarChar
-  isArchived        Boolean         @default(false)
-  isRecycle         Boolean         @default(false)
-  isShare           Boolean         @default(false)
-  isTop             Boolean         @default(false)
-  isReviewed        Boolean         @default(false)
-  sharePassword     String          @default("") @db.VarChar
-  shareEncryptedUrl String?         @db.VarChar
-  shareExpiryDate   DateTime?       @db.Timestamptz(6)
-  shareMaxView      Int?            @default(0)
-  shareViewCount    Int?            @default(0)
-  metadata          Json?           @db.Json
+  id                Int                 @id @default(autoincrement())
+  type              Int                 @default(0)
+  content           String              @default("") @db.VarChar
+  isArchived        Boolean             @default(false)
+  isRecycle         Boolean             @default(false)
+  isShare           Boolean             @default(false)
+  isTop             Boolean             @default(false)
+  sharePassword     String              @default("") @db.VarChar
+  metadata          Json?               @db.Json
+  createdAt         DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime            @updatedAt @db.Timestamptz(6)
+  isReviewed        Boolean             @default(false)
   accountId         Int?
-  sortOrder         Int             @default(0)
-  createdAt         DateTime        @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime        @updatedAt @db.Timestamptz(6)
+  shareEncryptedUrl String?             @db.VarChar
+  shareExpiryDate   DateTime?           @db.Timestamptz(6)
+  shareMaxView      Int?                @default(0)
+  shareViewCount    Int?                @default(0)
+  sortOrder         Int                 @default(0)
   attachments       attachments[]
-  tags              tagsToNote[]
-  account           accounts?       @relation(fields: [accountId], references: [id])
-  referencedBy      noteReference[] @relation("ReferencedNote")
-  references        noteReference[] @relation("ReferencingNote")
-  comments          comments[]      @relation("NoteComments")
+  comments          comments[]          @relation("NoteComments")
   histories         noteHistory[]
   internalShares    noteInternalShare[]
+  references        noteReference[]     @relation("ReferencingNote")
+  referencedBy      noteReference[]     @relation("ReferencedNote")
+  account           accounts?           @relation(fields: [accountId], references: [id])
+  tags              tagsToNote[]
 }
 
 model comments {
-  id        Int      @id @default(autoincrement())
-  content   String   @db.Text
+  id        Int        @id @default(autoincrement())
+  content   String
   accountId Int?
-  guestName String?  @db.VarChar
-  guestIP   String?  @db.VarChar
-  guestUA   String?  @db.VarChar
+  guestName String?    @db.VarChar
+  guestIP   String?    @db.VarChar
+  guestUA   String?    @db.VarChar
   noteId    Int
   parentId  Int?
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
-
-  note    notes      @relation("NoteComments", fields: [noteId], references: [id])
-  account accounts?  @relation(fields: [accountId], references: [id])
-  parent  comments?  @relation("CommentReplies", fields: [parentId], references: [id])
-  replies comments[] @relation("CommentReplies")
+  createdAt DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @db.Timestamptz(6)
+  account   accounts?  @relation(fields: [accountId], references: [id])
+  note      notes      @relation("NoteComments", fields: [noteId], references: [id])
+  parent    comments?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   comments[] @relation("CommentReplies")
 }
 
 model tag {
@@ -118,21 +112,20 @@ model tag {
   name       String       @default("") @db.VarChar
   icon       String       @default("") @db.VarChar
   parent     Int          @default(0)
-  accountId  Int?
   createdAt  DateTime     @default(now()) @db.Timestamptz(6)
   updatedAt  DateTime     @updatedAt @db.Timestamptz(6)
-  tagsToNote tagsToNote[]
+  accountId  Int?
   sortOrder  Int          @default(0)
   account    accounts?    @relation(fields: [accountId], references: [id])
+  tagsToNote tagsToNote[]
 }
 
 model tagsToNote {
-  id     Int @default(autoincrement())
-  noteId Int @default(0)
-  tagId  Int @default(0)
-
-  note notes @relation(fields: [noteId], references: [id])
-  tag  tag   @relation(fields: [tagId], references: [id])
+  id     Int   @default(autoincrement())
+  noteId Int   @default(0)
+  tagId  Int   @default(0)
+  note   notes @relation(fields: [noteId], references: [id])
+  tag    tag   @relation(fields: [tagId], references: [id])
 
   @@id([noteId, tagId])
 }
@@ -151,40 +144,36 @@ model noteReference {
   fromNoteId Int
   toNoteId   Int
   createdAt  DateTime @default(now()) @db.Timestamptz(6)
-
-  fromNote notes @relation("ReferencingNote", fields: [fromNoteId], references: [id])
-  toNote   notes @relation("ReferencedNote", fields: [toNoteId], references: [id])
+  fromNote   notes    @relation("ReferencingNote", fields: [fromNoteId], references: [id])
+  toNote     notes    @relation("ReferencedNote", fields: [toNoteId], references: [id])
 
   @@unique([fromNoteId, toNoteId])
 }
 
 model follows {
-  id          Int     @id @default(autoincrement())
-  siteName    String? @db.VarChar
-  siteUrl     String  @db.VarChar
-  siteAvatar  String? @db.VarChar
-  description String? @db.Text
-
-  createdAt  DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
-  followType String   @default("following") @db.VarChar //  "following" or "follower"
-
-  accountId Int
-  account   accounts @relation(fields: [accountId], references: [id])
+  id          Int      @id @default(autoincrement())
+  siteName    String?  @db.VarChar
+  siteUrl     String   @db.VarChar
+  siteAvatar  String?  @db.VarChar
+  description String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  followType  String   @default("following") @db.VarChar
+  accountId   Int
+  account     accounts @relation(fields: [accountId], references: [id])
 }
 
 model notifications {
   id        Int      @id @default(autoincrement())
-  type      String   @db.VarChar // follow, comment, mention 等
+  type      String   @db.VarChar
   title     String   @db.VarChar
-  content   String   @db.Text
+  content   String
   metadata  Json?    @db.Json
   isRead    Boolean  @default(false)
   accountId Int
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
-
-  account accounts @relation(fields: [accountId], references: [id])
+  account   accounts @relation(fields: [accountId], references: [id])
 }
 
 model cache {
@@ -208,27 +197,25 @@ model plugin {
 model conversation {
   id        Int       @id @default(autoincrement())
   title     String    @default("") @db.VarChar(255)
-  isShare   Boolean   @default(false)
   accountId Int
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  isShare   Boolean   @default(false)
+  account   accounts  @relation(fields: [accountId], references: [id])
   messages  message[]
-
-  account accounts @relation(fields: [accountId], references: [id])
 
   @@index([accountId])
 }
 
 model message {
-  id             Int      @id @default(autoincrement())
-  content        String   @db.Text
-  role           String   @db.VarChar(50) // user or assistant
+  id             Int          @id @default(autoincrement())
+  content        String
+  role           String       @db.VarChar(50)
   conversationId Int
-  createdAt      DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
-  metadata       Json?    @db.Json
-
-  conversation conversation @relation(fields: [conversationId], references: [id])
+  createdAt      DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @db.Timestamptz(6)
+  metadata       Json?        @db.Json
+  conversation   conversation @relation(fields: [conversationId], references: [id])
 
   @@index([conversationId])
 }
@@ -236,13 +223,12 @@ model message {
 model noteHistory {
   id        Int      @id @default(autoincrement())
   noteId    Int
-  content   String   @db.Text
+  content   String
   metadata  Json?    @db.Json
   version   Int
   accountId Int?
   createdAt DateTime @default(now()) @db.Timestamptz(6)
-
-  note notes @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  note      notes    @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
   @@index([noteId])
   @@index([accountId])
@@ -255,9 +241,8 @@ model noteInternalShare {
   canEdit   Boolean  @default(true)
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
-
-  note    notes    @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  account accounts @relation(fields: [accountId], references: [id])
+  account   accounts @relation(fields: [accountId], references: [id])
+  note      notes    @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
   @@unique([noteId, accountId])
   @@index([noteId])
@@ -267,7 +252,7 @@ model noteInternalShare {
 model session {
   id        String   @id
   sid       String   @unique
-  data      String   @db.Text
+  data      String
   expiresAt DateTime
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
@@ -276,31 +261,29 @@ model session {
 }
 
 model aiProviders {
-  id        Int      @id @default(autoincrement())
-  title     String   @db.VarChar(255)
-  provider  String   @db.VarChar(50)
-  baseURL   String?  @db.VarChar(500)
-  apiKey    String?  @db.VarChar(500)
-  config    Json?    @db.Json
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
-
+  id        Int        @id @default(autoincrement())
+  title     String     @db.VarChar(255)
+  provider  String     @db.VarChar(50)
+  baseURL   String?    @db.VarChar(500)
+  apiKey    String?    @db.VarChar(500)
+  config    Json?      @db.Json
+  sortOrder Int        @default(0)
+  createdAt DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @db.Timestamptz(6)
   models    aiModels[]
 }
 
 model aiModels {
-  id            Int      @id @default(autoincrement())
-  providerId    Int
-  title         String   @db.VarChar(255)
-  modelKey      String   @db.VarChar(255)
-  capabilities  Json     @db.Json
-  config        Json?    @db.Json
-  sortOrder     Int      @default(0)
-  createdAt     DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
-
-  provider      aiProviders @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  id           Int         @id @default(autoincrement())
+  providerId   Int
+  title        String      @db.VarChar(255)
+  modelKey     String      @db.VarChar(255)
+  capabilities Json        @db.Json
+  config       Json?       @db.Json
+  sortOrder    Int         @default(0)
+  createdAt    DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime    @updatedAt @db.Timestamptz(6)
+  provider     aiProviders @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   @@index([providerId])
 }

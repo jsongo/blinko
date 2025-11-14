@@ -344,15 +344,34 @@ export class DBJob extends BaseScheduleJob {
                 }
               });
               if (note.attachments?.length) {
-                const attachmentData = note.attachments.map(attachment => ({
-                  ...attachment,
-                  noteId: createdNote.id
-                }));
-                await tx.attachments.createMany({
-                  data: attachmentData,
-                  skipDuplicates: true
+                // Remove 'id' field to avoid unique constraint conflicts during import
+                const attachmentData = note.attachments.map(attachment => {
+                  const { id, ...attachmentWithoutId } = attachment;
+                  return {
+                    ...attachmentWithoutId,
+                    noteId: createdNote.id
+                  };
                 });
-                current += note.attachments.length;
+                try {
+                  await tx.attachments.createMany({
+                    data: attachmentData,
+                    skipDuplicates: true
+                  });
+                  current += note.attachments.length;
+                } catch (error) {
+                  // If batch insert fails, try inserting one by one to skip conflicts
+                  for (const attachment of attachmentData) {
+                    try {
+                      await tx.attachments.create({
+                        data: attachment
+                      });
+                      current++;
+                    } catch (err) {
+                      // Skip duplicate attachments silently
+                      console.debug(`Skipping duplicate attachment: ${attachment.path}`);
+                    }
+                  }
+                }
               }
             }
           });

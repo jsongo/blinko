@@ -12,7 +12,6 @@ ENV npm_config_sharp_binary_host="https://npmmirror.com/mirrors/sharp"
 ENV npm_config_sharp_libvips_binary_host="https://npmmirror.com/mirrors/sharp-libvips"
 ENV PRISMA_ENGINES_MIRROR="https://registry.npmmirror.com/-/binary/prisma"
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
-# 跳过一些耗时的 postinstall
 ENV SKIP_POSTINSTALL=1
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
@@ -24,100 +23,85 @@ RUN if [ "$USE_MIRROR" = "true" ]; then \
     cat .bunfig.json; \
     fi
 
-# 只复制依赖文件 (package.json 不变时这层会被缓存)
-COPY package.json bun.lock turbo.json ./
-COPY tsconfig*.json ./
-COPY .npmrc ./
+# 优化: 先复制 lock 文件，单独一层缓存
+COPY bun.lock package.json ./
+
+# 优化: 复制配置文件（变化频率低）
+COPY turbo.json tsconfig*.json .npmrc ./
+
+# 优化: 复制 prisma schema（变化频率低）
 COPY prisma ./prisma
+
+# 优化: 复制各模块的 package.json（一次复制，避免多层）
 COPY server/package.json server/tsconfig*.json ./server/
 COPY app/package.json app/tsconfig*.json ./app/
 COPY shared/package.json shared/tsconfig*.json ./shared/
 COPY blinko-types/package.json ./blinko-types/
-COPY shared ./shared
 
-# 复制 app/tauri-plugin-blinko (Web 构建需要这个插件)
+# 优化: 复制 shared 和插件（构建依赖）
+COPY shared ./shared
 COPY app/tauri-plugin-blinko ./app/tauri-plugin-blinko
 
-# 安装依赖 - 简化输出
-RUN echo "========================" && \
-    echo "Starting bun install..." && \
-    echo "Bun version:" && bun --version && \
-    echo "========================" && \
-    bun install --unsafe-perm 2>&1 | grep -E "(packages installed|error|warn|failed)" || bun install --unsafe-perm && \
-    echo "========================" && \
-    echo "Installation completed!" && \
-    echo "========================"
+# 安装依赖 - 优化输出，减少日志大小
+RUN echo "Installing dependencies with Bun $(bun --version)..." && \
+    bun install --frozen-lockfile --unsafe-perm 2>&1 | \
+    grep -E "(packages installed|error|warn|failed)" || \
+    bun install --frozen-lockfile --unsafe-perm && \
+    echo "✓ Dependencies installed"
 
-# ARM 架构 sharp 预安装 (跳过,因为在 runtime-deps 阶段会统一安装)
-# 在 QEMU 模拟环境中安装容易失败,所以注释掉
-# RUN if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
-#     echo "Detected ARM architecture, installing sharp..." && \
-#     bun install --platform=linux --arch=arm64 sharp@0.34.1 --no-save --unsafe-perm || \
-#     bun install --force @img/sharp-linux-arm64 --no-save; \
-#     fi
-
-# 生成 Prisma Client (schema 不变时会使用缓存)
-RUN bunx prisma generate
+# 生成 Prisma Client
+RUN bunx prisma generate && \
+    echo "✓ Prisma Client generated"
 
 
 # ============================================
-# Stage 2: Builder - 构建应用 (只有代码变化时才重新构建)
+# Stage 2: Builder - 构建应用
 # ============================================
 FROM oven/bun:1.2.8 AS builder
 
-# 内存限制参数 (可在构建时覆盖)
-# CI 环境(16GB RAM): 使用 --build-arg BUILD_MEMORY=8192
-# 本地环境(有限内存): 使用默认值 2048
 ARG BUILD_MEMORY=2048
 
 WORKDIR /app
 
-# 从 deps 阶段复制 node_modules 和 Prisma Client (避免重新安装)
+# 从 deps 复制依赖（避免重新安装）
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json ./package.json
 
+# 优化: 只复制构建需要的文件
+COPY --from=deps /app/prisma ./prisma
+COPY --from=deps /app/tsconfig*.json ./
+COPY --from=deps /app/turbo.json ./turbo.json
+
 # 复制源代码
-COPY . .
+COPY server ./server
+COPY app ./app
+COPY shared ./shared
+COPY blinko-types ./blinko-types
 
-# 确保 Prisma Client 已生成
-RUN echo "Checking Prisma Client..." && \
-    ls -la node_modules/.prisma/client 2>/dev/null || bunx prisma generate
+# 验证 Prisma Client
+RUN ls -la node_modules/.prisma/client 2>/dev/null || bunx prisma generate
 
-# 构建应用 (分开构建以减少内存压力)
-# 注意：本地构建需要至少 8GB Docker 内存
-# 推荐使用 GitHub Actions 云端构建（见 BUILD_DOCKER_CLOUD.md）
+# 设置构建环境变量
+ENV NODE_OPTIONS="--max-old-space-size=${BUILD_MEMORY}"
+ENV UV_THREADPOOL_SIZE=4
 
-# 验证 BUILD_MEMORY 参数
-RUN echo "========================================" && \
-    echo "Build Configuration:" && \
-    echo "BUILD_MEMORY = ${BUILD_MEMORY} MB" && \
-    echo "NODE_OPTIONS will be set to: --max-old-space-size=${BUILD_MEMORY}" && \
-    echo "========================================"
-
-# 先构建 backend
-RUN echo "Building backend with ${BUILD_MEMORY}MB memory limit..." && \
-    export NODE_OPTIONS="--max-old-space-size=${BUILD_MEMORY}" && \
-    cd server && bun run build:web && cd ..
-
-# 再构建 frontend (使用 Docker 优化配置)
-RUN echo "======================================" && \
-    echo "Building frontend with ${BUILD_MEMORY}MB memory limit..." && \
-    echo "Using optimized Docker config: vite.config.docker.ts" && \
-    echo "Available CPU cores: $(nproc)" && \
-    echo "Start time: $(date '+%Y-%m-%d %H:%M:%S')" && \
-    echo "======================================" && \
-    cd app && \
-    DISABLE_PWA=true \
-    NODE_OPTIONS="--max-old-space-size=${BUILD_MEMORY}" \
-    UV_THREADPOOL_SIZE=4 \
-    bun run ../node_modules/.bin/vite build --config vite.config.docker.ts --logLevel info && \
-    echo "======================================" && \
-    echo "Frontend build completed: $(date '+%Y-%m-%d %H:%M:%S')" && \
-    echo "======================================" && \
+# 优化: 串行构建，减少内存峰值
+RUN echo "Building backend (memory: ${BUILD_MEMORY}MB)..." && \
+    cd server && \
+    bun run build:web && \
+    echo "✓ Backend built" && \
     cd ..
 
-RUN echo "Starting build:seed..." && \
-    bun run build:seed 2>&1 || (echo "Build seed failed! Check the error above." && exit 1)
+RUN echo "Building frontend (memory: ${BUILD_MEMORY}MB)..." && \
+    cd app && \
+    DISABLE_PWA=true \
+    bun run ../node_modules/.bin/vite build --config vite.config.docker.ts --logLevel warn && \
+    echo "✓ Frontend built" && \
+    cd ..
+
+RUN echo "Running build:seed..." && \
+    bun run build:seed 2>&1 | grep -E "(error|warn|✓)" || bun run build:seed && \
+    echo "✓ Seed completed"
 
 # 生成启动脚本（带错误处理）
 RUN printf '#!/bin/sh\n\
@@ -145,19 +129,7 @@ exec node server/index.js\n' > start.sh && \
 
 
 # ============================================
-# Stage 3: Init Downloader - 下载工具 (会被缓存)
-# ============================================
-FROM node:20-alpine AS init-downloader
-
-WORKDIR /app
-
-RUN wget -qO /app/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_$(uname -m) && \
-    chmod +x /app/dumb-init && \
-    rm -rf /var/cache/apk/*
-
-
-# ============================================
-# Stage 4: Runtime Dependencies - 安装运行时依赖 (会被缓存)
+# Stage 3: Runtime Dependencies - 运行时依赖
 # ============================================
 FROM node:20-alpine AS runtime-deps
 
@@ -170,30 +142,35 @@ ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1
 ENV npm_config_sharp_binary_host="https://npmmirror.com/mirrors/sharp"
 ENV npm_config_sharp_libvips_binary_host="https://npmmirror.com/mirrors/sharp-libvips"
 
-# 安装构建工具和运行时库
+# 优化: 合并 apk 操作，减少层数
 RUN apk add --no-cache openssl vips-dev python3 py3-setuptools make g++ gcc libc-dev linux-headers && \
-    if [ "$USE_MIRROR" = "true" ]; then \
-    npm config set registry https://registry.npmmirror.com; \
-    fi
+    if [ "$USE_MIRROR" = "true" ]; then npm config set registry https://registry.npmmirror.com; fi && \
+    rm -rf /var/cache/apk/*
 
-# 复制 package.json 用于安装依赖 (不变时会使用缓存)
+# 复制 package.json
 COPY --from=builder /app/package.json ./package.json
 
-# 安装运行时依赖 (统一安装,包括 sharp)
-# sharp 会根据当前架构自动下载正确的预编译二进制
-RUN npm install @node-rs/crc32 lightningcss sharp@0.34.1 prisma@6.19.0 && \
+# 优化: 一次性安装所有运行时依赖，减少层数
+RUN npm install --omit=dev --no-audit --no-fund \
+    @node-rs/crc32 \
+    lightningcss \
+    sharp@0.34.1 \
+    prisma@6.19.0 \
+    sqlite3@5.1.7 \
+    llamaindex \
+    @langchain/community@0.3.40 \
+    @libsql/client \
+    @libsql/core && \
     npm install -g prisma@6.19.0 && \
-    npm install sqlite3@5.1.7 && \
-    npm install llamaindex @langchain/community@0.3.40 && \
-    npm install @libsql/client @libsql/core
+    echo "✓ Runtime dependencies installed"
 
-# 清理构建工具 (保留 openssl 和 vips-dev)
+# 优化: 清理构建工具和缓存
 RUN apk del python3 py3-setuptools make g++ gcc libc-dev linux-headers && \
-    rm -rf /var/cache/apk/* /root/.npm /root/.cache
+    rm -rf /var/cache/apk/* /root/.npm /root/.cache /tmp/*
 
 
 # ============================================
-# Stage 5: Final Runner - 最终运行镜像 (最小化)
+# Stage 4: Final Runner - 最终运行镜像
 # ============================================
 FROM node:20-alpine AS runner
 
@@ -203,36 +180,35 @@ ENV NODE_ENV=production
 ENV DISABLE_SECURE_COOKIE=false
 ENV TRUST_PROXY=1
 
-# 只安装运行时必需的库 (不需要构建工具)
+# 优化: 只安装必需的运行时库
 RUN apk add --no-cache openssl vips-dev && \
+    wget -qO /usr/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_$(uname -m) && \
+    chmod +x /usr/bin/dumb-init && \
     rm -rf /var/cache/apk/*
 
-# 从各个阶段复制必要文件
-COPY --from=builder /app/dist ./server
-COPY --from=builder /app/server/lute.min.js ./server/lute.min.js
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/start.sh ./
-COPY --from=init-downloader /app/dumb-init /usr/local/bin/dumb-init
-
-# 从 deps 复制 Prisma Client
-COPY --from=deps /app/node_modules/.prisma/client ./node_modules/.prisma/client
-
-# 从 runtime-deps 复制运行时依赖
+# 优化: 按变化频率排序复制，最常变化的放最后
 COPY --from=runtime-deps /app/node_modules ./node_modules
 COPY --from=runtime-deps /usr/local/lib/node_modules/prisma /usr/local/lib/node_modules/prisma
 COPY --from=runtime-deps /usr/local/bin/prisma /usr/local/bin/prisma
 
-# 重新生成 Prisma Client (确保路径正确)
-RUN npx prisma generate
+COPY --from=deps /app/node_modules/.prisma/client ./node_modules/.prisma/client
+COPY --from=builder /app/prisma ./prisma
+
+# 重新生成 Prisma Client（确保路径正确）
+RUN npx prisma generate && echo "✓ Prisma Client ready"
+
+COPY --from=builder /app/server/lute.min.js ./server/lute.min.js
+COPY --from=builder /app/dist ./server
+COPY --from=builder /app/start.sh ./start.sh
 
 RUN chmod +x ./start.sh
 
-# 健康检查
+# 优化: 添加健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD node -e "require('http').get('http://localhost:1111/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
 
-# Expose Port (Adjust According to Actual Application)
 EXPOSE 1111
 
-ENTRYPOINT ["/usr/local/bin/dumb-init", "--"]
+# 使用 dumb-init 确保信号正确处理
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 CMD ["/bin/sh", "-c", "./start.sh"]

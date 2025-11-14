@@ -9,7 +9,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const host = process.env.TAURI_DEV_HOST || '0.0.0.0';
-const EXPRESS_PORT = 1111;
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -131,8 +130,7 @@ export default defineConfig({
   },
   clearScreen: false,
   server: {
-    // Port will be set by ViteExpress in development, or used directly in standalone mode
-    port: EXPRESS_PORT,
+    port: 5173, // Use standard Vite port in dev mode
     strictPort: false,
     host: host || false,
     allowedHosts: true,
@@ -141,6 +139,25 @@ export default defineConfig({
     },
     watch: {
       ignored: ["**/src-tauri/**", "**/node_modules/**", "**/.git/**"],
+    },
+    // Proxy API requests to backend server
+    proxy: {
+      '/api': {
+        target: 'http://localhost:1111',
+        changeOrigin: true,
+      },
+      '/v1': {
+        target: 'http://localhost:1111',
+        changeOrigin: true,
+      },
+      '/dist': {
+        target: 'http://localhost:1111',
+        changeOrigin: true,
+      },
+      '/plugins': {
+        target: 'http://localhost:1111',
+        changeOrigin: true,
+      },
     },
   },
   optimizeDeps: {

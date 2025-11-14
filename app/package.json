@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "cd ../server && bun run dev",
+    "dev": "npx vite",
     "build": "bun run build:web",
     "build:no-pwa": "cross-env DISABLE_PWA=true NODE_OPTIONS=\"--max-old-space-size=4096\" bun run build:web",
     "icon": "bun run tauri icon",
