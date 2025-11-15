@@ -157,6 +157,7 @@ RUN npm install --omit=dev --no-audit --no-fund --legacy-peer-deps \
     sharp@0.34.1 \
     prisma@6.19.0 \
     @prisma/client@6.19.0 \
+    @prisma/engines@6.19.0 \
     sqlite3@5.1.7 \
     llamaindex \
     @langchain/community@0.3.40 \
