@@ -151,7 +151,7 @@ RUN apk add --no-cache openssl vips-dev python3 py3-setuptools make g++ gcc libc
 COPY --from=builder /app/package.json ./package.json
 
 # 优化: 一次性安装所有运行时依赖，减少层数
-RUN npm install --omit=dev --no-audit --no-fund \
+RUN npm install --omit=dev --no-audit --no-fund --legacy-peer-deps \
     @node-rs/crc32 \
     lightningcss \
     sharp@0.34.1 \

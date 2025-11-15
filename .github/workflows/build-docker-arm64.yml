@@ -1,6 +1,9 @@
 name: Build Docker ARM64
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       version:
@@ -21,6 +24,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "push" ]; then
+            # Extract version from tag (remove 'v' prefix)
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "set_latest=true" >> $GITHUB_OUTPUT
+          else
+            # Use manual input from workflow_dispatch
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "set_latest=${{ github.event.inputs.set_latest }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -53,16 +70,16 @@ jobs:
           build-args: |
             BUILD_MEMORY=8192
           tags: |
-            jsongo/blinko:${{ github.event.inputs.version }}-arm64
-            ${{ github.event.inputs.set_latest && 'jsongo/blinko:latest-arm64' || '' }}
-            ghcr.io/${{ github.repository_owner }}/blinko:${{ github.event.inputs.version }}-arm64
-            ${{ github.event.inputs.set_latest && format('ghcr.io/{0}/blinko:latest-arm64', github.repository_owner) || '' }}
+            jsongo/blinko:${{ steps.get_version.outputs.version }}-arm64
+            ${{ steps.get_version.outputs.set_latest == 'true' && 'jsongo/blinko:latest-arm64' || '' }}
+            ghcr.io/${{ github.repository_owner }}/blinko:${{ steps.get_version.outputs.version }}-arm64
+            ${{ steps.get_version.outputs.set_latest == 'true' && format('ghcr.io/{0}/blinko:latest-arm64', github.repository_owner) || '' }}
           cache-from: |
             type=gha,scope=docker-arm64
             type=registry,ref=jsongo/blinko:buildcache-arm64
           cache-to: type=gha,mode=max,scope=docker-arm64
           labels: |
-            org.opencontainers.image.version=${{ github.event.inputs.version }}
+            org.opencontainers.image.version=${{ steps.get_version.outputs.version }}
             org.opencontainers.image.created=${{ github.event.run_started_at }}
 
       - name: Image digest
