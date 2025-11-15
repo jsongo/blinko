@@ -111,10 +111,10 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
           style={!isPc ? {
             position: 'fixed',
             top: 'env(safe-area-inset-top)',
-            borderRadius:'0 0 12px 12px',
+            // borderRadius:'0 0 12px 12px',
             zIndex: 11,
             width: '100%',
-            background: getFixedHeaderBackground(),
+            // background: getFixedHeaderBackground(),
             backdropFilter: 'blur(10px)',
             WebkitBackdropFilter: 'blur(10px)'
           } : undefined}

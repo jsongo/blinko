@@ -403,6 +403,7 @@ export const ShowAudioDialog = ((onComplete: (file: File) => void) => {
   return dialogStore.setData({
     size: 'sm',
     onlyContent: true,
+    showOnlyContentCloseButton: true,
     isOpen: true,
     content: <MyAudioRecorder onComplete={(file) => {
       onComplete(file);

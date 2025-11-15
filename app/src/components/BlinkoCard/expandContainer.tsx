@@ -67,6 +67,7 @@ export const ExpandableContainer = ({ isExpanded, children, onClose, withoutBoxS
             zIndex: 20,
             width: "100vw",
             height: "100vh",
+            paddingTop: 'env(safe-area-inset-top)',
             transition: 'all 0.3s ease-in-out',
           }}
         >
@@ -96,9 +97,10 @@ export const ExpandableContainer = ({ isExpanded, children, onClose, withoutBoxS
       style={{
         ...BASE_STYLES,
         position: isExpanded ? 'fixed' : 'relative',
-        top: isExpanded ? 0 : 'auto',
+        top: isExpanded ? 'env(safe-area-inset-top)' : 'auto',
         left: isExpanded ? 0 : 'auto',
         zIndex: isExpanded ? 50 : 1,
+        paddingTop: isExpanded ? 'env(safe-area-inset-top)' : undefined,
       }}
       layout
       animate={{

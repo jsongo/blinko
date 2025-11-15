@@ -7,6 +7,7 @@ import { useMediaQuery } from "usehooks-ts";
 import { motion } from "motion/react";
 import { Icon } from '@/components/Common/Iconify/icons';
 import { CancelIcon } from "@/components/Common/Icons";
+import { useEffect } from "react";
 
 const CloseButton = ({ onClose }: { onClose: () => void }) => (
   <motion.div
@@ -51,6 +52,23 @@ const Dialog = observer(() => {
     onStateChange: () => modal.close(),
     historyState: 'modal'
   });
+
+  // Handle keyboard shortcuts for closing the dialog
+  useEffect(() => {
+    if (!isOpen || !isDismissable) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Handle Cmd+W (Mac) or Ctrl+W (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
+        e.preventDefault();
+        modal.close();
+      }
+      // ESC key is already handled by HeroUI Modal component
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isDismissable]);
 
   const motionConfig = {
     initial: "enter",
