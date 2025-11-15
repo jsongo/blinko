@@ -140,11 +140,12 @@ export class AiStore implements Store {
         );
 
         for await (const item of res) {
-          console.log(JSON.parse(JSON.stringify(item)));
+          // console.log(JSON.parse(JSON.stringify(item)));
           if (item.chunk?.type == 'error') {
             //@ts-ignore
             const errorMessage = item.chunk?.error?.name || 'error';
             RootStore.Get(ToastPlugin).error(errorMessage);
+            
             this.isAnswering = false;
             return;
           }
