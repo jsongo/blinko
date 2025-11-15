@@ -176,7 +176,34 @@ export class BlinkoStore implements Store {
     }
 
     const filteredOfflineNotes = this.offlineNotes.filter(offlineFilter);
-    const mergedNotes = [...filteredOfflineNotes, ...notes].map(i => ({ ...i, isExpand: false }));
+    let mergedNotes = [...filteredOfflineNotes, ...notes].map(i => ({ ...i, isExpand: false }));
+
+    // 对合并后的数据进行排序（与服务端保持一致）
+    const sortBy = this.noteListSortConfig.sortBy || 'createdAt';
+    const direction = this.noteListSortConfig.direction || 'desc';
+
+    mergedNotes.sort((a, b) => {
+      let aValue: any = a[sortBy as keyof typeof a];
+      let bValue: any = b[sortBy as keyof typeof b];
+
+      // 处理日期类型
+      if (sortBy === 'createdAt' || sortBy === 'updatedAt') {
+        aValue = new Date(aValue).getTime();
+        bValue = new Date(bValue).getTime();
+      }
+
+      // 处理字符串类型（content）
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (direction === 'desc') {
+        return bValue > aValue ? 1 : bValue < aValue ? -1 : 0;
+      } else {
+        return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+      }
+    });
 
     if (!this.isOnline) {
       const start = (page - 1) * size;
