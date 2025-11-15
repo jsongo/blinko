@@ -156,6 +156,7 @@ RUN npm install --omit=dev --no-audit --no-fund --legacy-peer-deps \
     lightningcss \
     sharp@0.34.1 \
     prisma@6.19.0 \
+    @prisma/client@6.19.0 \
     sqlite3@5.1.7 \
     llamaindex \
     @langchain/community@0.3.40 \
@@ -191,10 +192,11 @@ COPY --from=runtime-deps /app/node_modules ./node_modules
 COPY --from=runtime-deps /usr/local/lib/node_modules/prisma /usr/local/lib/node_modules/prisma
 COPY --from=runtime-deps /usr/local/bin/prisma /usr/local/bin/prisma
 
+# 先复制已有的 Prisma Client（作为 fallback）
 COPY --from=deps /app/node_modules/.prisma/client ./node_modules/.prisma/client
 COPY --from=builder /app/prisma ./prisma
 
-# 重新生成 Prisma Client（确保路径正确）
+# 重新生成 Prisma Client（确保架构匹配 arm64/amd64）
 RUN npx prisma generate && echo "✓ Prisma Client ready"
 
 COPY --from=builder /app/server/lute.min.js ./server/lute.min.js
