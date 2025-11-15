@@ -77,16 +77,15 @@ body {
   background-color: var(--secondbackground);
 }
 
-/* Add safe area padding for mobile devices - only on body to avoid double padding */
+/* Add safe area padding for mobile devices */
 body {
-  padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Fix mobile header spacing - add padding for fixed header on mobile */
 @media (max-width: 768px) {
   #page-wrap {
-    padding-top: 60px; /* h-14 = 56px */
+    padding-top: calc(60px + env(safe-area-inset-top)); /* h-14 = 56px + safe area */
   }
 }
 

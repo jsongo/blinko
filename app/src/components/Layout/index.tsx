@@ -110,7 +110,7 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
           className="blinko-mobile-header relative flex md:h-16 md:min-h-16 h-14 min-h-14 items-center justify-between gap-2 px-2 md:px:4 pt-2 md:pb-2 overflow-hidden"
           style={!isPc ? {
             position: 'fixed',
-            top: 0,
+            top: 'env(safe-area-inset-top)',
             borderRadius:'0 0 12px 12px',
             zIndex: 11,
             width: '100%',
